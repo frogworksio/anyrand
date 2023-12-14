@@ -1,0 +1,20 @@
+.DS_Store
+
+node_modules
+.env
+!.env.example
+coverage
+coverage.json
+typechain
+typechain-types
+yarn-error.log
+
+# Hardhat files
+cache
+artifacts
+.idea/
+
+# Noir
+circuits/proofs/
+circuits/target/
+crs/
