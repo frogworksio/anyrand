@@ -92,7 +92,7 @@ const config: HardhatUserConfig = {
         runOnCompile: true,
         clear: true,
         flat: true,
-        only: ['Lootery'],
+        only: ['RNGesusReloaded'],
         except: ['test/*'],
     },
 }
