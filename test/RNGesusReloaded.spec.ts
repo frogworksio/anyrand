@@ -63,6 +63,7 @@ describe('RNGesusReloaded', () => {
             signature:
                 '2e7ea1d34df3b278c493063e1201b09fdc136a3752d59db23ab448c96d6f912917de46ad0e1ce62718d3623379340a8fae34cdd931e99e1ce732cd879fffc6c0',
         }
+        expect(round).to.eq(roundBeacon.round)
 
         // Wait 10s & fulfill
         await time.increase(10)

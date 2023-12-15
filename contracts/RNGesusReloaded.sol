@@ -43,6 +43,7 @@ contract RNGesusReloaded is Ownable {
     error InvalidRequestHash();
     error InvalidSignature();
     error BeaconDoesNotExist();
+    error InvalidPublicKey(uint256[4] pubKey);
 
     constructor(uint256 initialRequestPrice) Ownable(msg.sender) {
         requestPrice = initialRequestPrice;
@@ -110,6 +111,9 @@ contract RNGesusReloaded is Ownable {
     function registerBeacon(
         DrandBeacon calldata drandBeacon
     ) external onlyOwner {
+        if (!BLS.isValidPublicKey(drandBeacon.publicKey)) {
+            revert InvalidPublicKey(drandBeacon.publicKey);
+        }
         bytes32 pubKeyHash = hashPubKey(drandBeacon.publicKey);
         beacons[pubKeyHash] = drandBeacon;
         emit BeaconRegistered(pubKeyHash);
@@ -210,11 +214,12 @@ contract RNGesusReloaded is Ownable {
         }
 
         uint256[2] memory message = BLS.hashToPoint(hashedRoundBytes);
-        bool isValidSignature = BLS.verifySingle(
-            signature,
-            beacons[beaconPubKeyHash].publicKey,
-            message
-        );
+        bool isValidSignature = BLS.isValidSignature(signature) &&
+            BLS.verifySingle(
+                signature,
+                beacons[beaconPubKeyHash].publicKey,
+                message
+            );
         if (!isValidSignature) {
             revert InvalidSignature();
         }
