@@ -4,6 +4,7 @@
   "description": "RNGesus is back bitches",
   "scripts": {
     "deploy:scrolltestnet": "yarn hardhat --network scrollSepolia run scripts/deploy.ts",
+    "deploy:sepolia": "yarn hardhat --network sepolia run scripts/deploy.ts",
     "test": "yarn hardhat --network hardhat test",
     "coverage": "yarn hardhat --network hardhat coverage"
   },
