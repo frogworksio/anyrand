@@ -92,7 +92,7 @@ const config: HardhatUserConfig = {
         runOnCompile: true,
         clear: true,
         flat: true,
-        only: ['RNGesusReloaded'],
+        only: ['RNGesusReloaded', 'RNGesusReloadedConsumer'],
         except: ['test/*'],
     },
 }
