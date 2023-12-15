@@ -10,10 +10,10 @@ contract RNGesusReloaded is Ownable {
     struct DrandBeacon {
         /// @notice Group PK in G2
         uint256[4] publicKey;
-        /// @notice Genesis timestamp
-        uint256 genesisTimestamp;
         /// @notice The beacon's period, in seconds
         uint256 period;
+        /// @notice Genesis timestamp
+        uint256 genesisTimestamp;
     }
 
     /// @notice The price of entropy
@@ -27,9 +27,12 @@ contract RNGesusReloaded is Ownable {
 
     event RandomnessRequested(
         uint256 indexed requestId,
+        bytes32 beaconPubKeyHash,
         address requester,
-        uint256 targetRound
+        uint256 round,
+        address callbackContract
     );
+    event RandomnessFulfilled(uint256 indexed requestId, uint256[] randomWords);
 
     error TransferFailed();
     error IncorrectPayment();
@@ -140,6 +143,14 @@ contract RNGesusReloaded is Ownable {
             callbackContract
         );
 
+        emit RandomnessRequested(
+            requestId,
+            beaconPubKeyHash,
+            msg.sender,
+            round,
+            callbackContract
+        );
+
         return requestId;
     }
 
@@ -173,7 +184,7 @@ contract RNGesusReloaded is Ownable {
         bytes memory hashedRoundBytes = new bytes(32);
         assembly {
             mstore(0x00, round)
-            let hashedRound := keccak256(0x18, 0x20) // hash the last 8 bytes (uint64) of `round`
+            let hashedRound := keccak256(0x18, 0x08) // hash the last 8 bytes (uint64) of `round`
             mstore(add(0x20, hashedRoundBytes), hashedRound)
         }
 
@@ -192,14 +203,17 @@ contract RNGesusReloaded is Ownable {
             keccak256(
                 abi.encode(
                     keccak256(abi.encode(signature[0], signature[0])),
-                    requestId
+                    requestId,
+                    requester
                 )
             )
         );
 
-        IRandomiserCallback(callbackContract).receiveRandomWords(
+        IRandomiserCallback(callbackContract).receiveRandomWords{gas: 500_000}(
             requestId,
             randomWords
         );
+
+        emit RandomnessFulfilled(requestId, randomWords);
     }
 }
