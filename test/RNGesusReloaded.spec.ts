@@ -7,7 +7,7 @@ import {
     RNGesusReloaded__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { getBytes, hexlify, keccak256, parseEther } from 'ethers'
+import { getBytes, hexlify, parseEther } from 'ethers'
 import { expect } from 'chai'
 
 const DRAND_BN254_INFO = {

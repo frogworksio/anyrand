@@ -33,6 +33,8 @@ contract RNGesusReloaded is Ownable {
         address callbackContract
     );
     event RandomnessFulfilled(uint256 indexed requestId, uint256[] randomWords);
+    event RequestPriceUpdated(uint256 newPrice);
+    event ETHWithdrawn(uint256 amount);
 
     error TransferFailed();
     error IncorrectPayment();
@@ -41,6 +43,7 @@ contract RNGesusReloaded is Ownable {
 
     constructor(uint256 initialRequestPrice) Ownable(msg.sender) {
         requestPrice = initialRequestPrice;
+        emit RequestPriceUpdated(initialRequestPrice);
     }
 
     /// @notice Compute keccak256 of a public key
@@ -89,6 +92,12 @@ contract RNGesusReloaded is Ownable {
         if (!success) {
             revert TransferFailed();
         }
+        emit ETHWithdrawn(amount);
+    }
+
+    function setPrice(uint256 newPrice) external onlyOwner {
+        requestPrice = newPrice;
+        emit RequestPriceUpdated(newPrice);
     }
 
     /// @notice Register drand beacon
