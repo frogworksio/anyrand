@@ -1,4 +1,4 @@
-import { ethers } from 'hardhat'
+import { ethers, run } from 'hardhat'
 import { RNGesusReloadedConsumer__factory, RNGesusReloaded__factory } from '../typechain-types'
 import { parseEther } from 'ethers'
 
@@ -14,6 +14,16 @@ async function main() {
         await rngesus.getAddress(),
     )
     console.log(`Consumer deployed at: ${await consumer.getAddress()}`)
+
+    await new Promise((resolve) => setTimeout(resolve, 30_000))
+    await run('verify:verify', {
+        address: await rngesus.getAddress(),
+        constructorArguments: [REQUEST_PRICE],
+    })
+    await run('verify:verify', {
+        address: await consumer.getAddress(),
+        constructorArguments: [await rngesus.getAddress()],
+    })
 }
 
 main()
