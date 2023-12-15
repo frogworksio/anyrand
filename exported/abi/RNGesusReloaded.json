@@ -17,7 +17,17 @@
   },
   {
     "inputs": [],
+    "name": "BeaconExists",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "IncorrectPayment",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidBeaconConfiguration",
     "type": "error"
   },
   {

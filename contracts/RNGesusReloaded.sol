@@ -44,6 +44,8 @@ contract RNGesusReloaded is Ownable {
     error InvalidSignature();
     error BeaconDoesNotExist();
     error InvalidPublicKey(uint256[4] pubKey);
+    error BeaconExists();
+    error InvalidBeaconConfiguration();
 
     constructor(uint256 initialRequestPrice) Ownable(msg.sender) {
         requestPrice = initialRequestPrice;
@@ -99,6 +101,8 @@ contract RNGesusReloaded is Ownable {
         emit ETHWithdrawn(amount);
     }
 
+    /// @notice Update request price
+    /// @param newPrice The new price
     function setPrice(uint256 newPrice) external onlyOwner {
         requestPrice = newPrice;
         emit RequestPriceUpdated(newPrice);
@@ -111,14 +115,21 @@ contract RNGesusReloaded is Ownable {
     function registerBeacon(
         DrandBeacon calldata drandBeacon
     ) external onlyOwner {
+        if (drandBeacon.genesisTimestamp == 0) {
+            revert InvalidBeaconConfiguration();
+        }
         if (!BLS.isValidPublicKey(drandBeacon.publicKey)) {
             revert InvalidPublicKey(drandBeacon.publicKey);
         }
         bytes32 pubKeyHash = hashPubKey(drandBeacon.publicKey);
+        if (beacons[pubKeyHash].genesisTimestamp != 0) {
+            revert BeaconExists();
+        }
         beacons[pubKeyHash] = drandBeacon;
         emit BeaconRegistered(pubKeyHash);
     }
 
+    /// @notice Remove an existing beacon
     function expelBeacon(bytes32 pubKeyHash) external onlyOwner {
         if (beacons[pubKeyHash].genesisTimestamp == 0) {
             revert BeaconDoesNotExist();
