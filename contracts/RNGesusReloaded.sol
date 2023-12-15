@@ -35,11 +35,14 @@ contract RNGesusReloaded is Ownable {
     event RandomnessFulfilled(uint256 indexed requestId, uint256[] randomWords);
     event RequestPriceUpdated(uint256 newPrice);
     event ETHWithdrawn(uint256 amount);
+    event BeaconRegistered(bytes32 pubKeyHash);
+    event BeaconRemoved(bytes32 pubKeyHash);
 
     error TransferFailed();
     error IncorrectPayment();
     error InvalidRequestHash();
     error InvalidSignature();
+    error BeaconDoesNotExist();
 
     constructor(uint256 initialRequestPrice) Ownable(msg.sender) {
         requestPrice = initialRequestPrice;
@@ -109,6 +112,15 @@ contract RNGesusReloaded is Ownable {
     ) external onlyOwner {
         bytes32 pubKeyHash = hashPubKey(drandBeacon.publicKey);
         beacons[pubKeyHash] = drandBeacon;
+        emit BeaconRegistered(pubKeyHash);
+    }
+
+    function expelBeacon(bytes32 pubKeyHash) external onlyOwner {
+        if (beacons[pubKeyHash].genesisTimestamp == 0) {
+            revert BeaconDoesNotExist();
+        }
+        delete beacons[pubKeyHash];
+        emit BeaconRemoved(pubKeyHash);
     }
 
     /// @notice Request randomness

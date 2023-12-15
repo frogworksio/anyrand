@@ -8,7 +8,7 @@ import {RNGesusReloaded} from "../RNGesusReloaded.sol";
 /// @title RNGesusReloadedConsumer
 contract RNGesusReloadedConsumer is Ownable, IRandomiserCallback {
     /// @notice RNGesus instance
-    address immutable rngesus;
+    address public immutable rngesus;
     /// @notice Recorded randomness. A special value of 1 means the request is
     ///     inflight
     mapping(uint256 requestId => uint256) public randomness;

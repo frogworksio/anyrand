@@ -15,6 +15,7 @@
     "./scripts",
     "./test",
     "./typechain-types",
-    "./types"
+    "./types",
+    "./lib"
   ]
 }
