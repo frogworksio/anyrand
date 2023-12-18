@@ -3,6 +3,7 @@ pragma solidity 0.8.23;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BLS} from "./bls/BLS.sol";
+import {Gas} from "./lib/Gas.sol";
 import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
 import {IRNGesusReloaded} from "./interfaces/IRNGesusReloaded.sol";
 
@@ -23,34 +24,42 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
 
     /// @notice The price of entropy
     uint256 public requestPrice;
+    /// @notice Maximum callback gas limit
+    uint256 public maxCallbackGasLimit;
     /// @notice Self-explanatory
     uint256 public nextRequestId;
     /// @notice Request hashes - see {RNGesusReloaded-hashRequest}
     mapping(uint256 requestId => bytes32) public requests;
+    /// @notice Reentrance flag
+    bool private reentranceLock;
 
     event RandomnessRequested(
         uint256 indexed requestId,
         address requester,
-        uint256 round,
-        address callbackContract
+        uint256 round
     );
     event RandomnessFulfilled(uint256 indexed requestId, uint256[] randomWords);
     event RequestPriceUpdated(uint256 newPrice);
     event ETHWithdrawn(uint256 amount);
+    event MaxCallbackGasLimitUpdated(uint256 newMaxCallbackGasLimit);
 
     error TransferFailed();
     error IncorrectPayment();
+    error OverGasLimit();
     error InvalidRequestHash();
     error InvalidSignature();
     error InvalidPublicKey(uint256[4] pubKey);
     error InvalidBeaconConfiguration();
     error InvalidDeadline();
+    error InsufficientGas();
+    error Reentrant();
 
     constructor(
         uint256[4] memory publicKey_,
         uint256 genesisTimestamp_,
         uint256 period_,
-        uint256 initialRequestPrice
+        uint256 initialRequestPrice,
+        uint256 maxCallbackGasLimit_
     ) Ownable(msg.sender) {
         if (!BLS.isValidPublicKey(publicKey_)) {
             revert InvalidPublicKey(publicKey_);
@@ -68,6 +77,16 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
 
         requestPrice = initialRequestPrice;
         emit RequestPriceUpdated(initialRequestPrice);
+
+        maxCallbackGasLimit = maxCallbackGasLimit_;
+        emit MaxCallbackGasLimitUpdated(maxCallbackGasLimit_);
+    }
+
+    /// @notice Assert that the reentrance lock is not set
+    function _assertNoReentrance() internal view {
+        if (reentranceLock) {
+            revert Reentrant();
+        }
     }
 
     /// @notice Return this beacon's public key in memory
@@ -82,15 +101,13 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
 
     /// @notice Compute keccak256 of a request
     /// @param requestId Request id, acts as a nonce
-    /// @param requester Address of account that initiated the request.
+    /// @param requester Address of contract that initiated the request.
     /// @param round Target round of the drand beacon.
-    /// @param callbackContract Address of contract that should receive the
-    ///     callback, implementing the {IRandomiserCallback} interface.
     function hashRequest(
         uint256 requestId,
         address requester,
         uint256 round,
-        address callbackContract
+        uint256 callbackGasLimit
     ) internal view returns (bytes32) {
         return
             keccak256(
@@ -100,7 +117,7 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
                     requestId,
                     requester,
                     round,
-                    callbackContract
+                    callbackGasLimit
                 )
             );
     }
@@ -132,14 +149,17 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     ///     beacon round closest to this timestamp (rounding up to the nearest
     ///     future round) will be used as the round from which to derive
     ///     randomness.
-    /// @param callbackContract Address of contract that should receive the
-    ///     callback, implementing the {IRandomiserCallback} interface.
+    /// @param callbackGasLimit Gas limit for callback
     function requestRandomness(
         uint256 deadline,
-        address callbackContract
+        uint256 callbackGasLimit
     ) external payable override returns (uint256) {
+        _assertNoReentrance();
         if (msg.value != requestPrice) {
             revert IncorrectPayment();
+        }
+        if (callbackGasLimit > maxCallbackGasLimit) {
+            revert OverGasLimit();
         }
 
         uint256 requestId = nextRequestId;
@@ -159,15 +179,10 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
             requestId,
             msg.sender,
             round,
-            callbackContract
+            callbackGasLimit
         );
 
-        emit RandomnessRequested(
-            requestId,
-            msg.sender,
-            round,
-            callbackContract
-        );
+        emit RandomnessRequested(requestId, msg.sender, round);
 
         return requestId;
     }
@@ -176,20 +191,21 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     /// @param requestId Which request id to fulfill
     /// @param requester Address of account that initiated the request.
     /// @param round Target round of the drand beacon.
-    /// @param callbackContract Address of contract that should receive the
-    ///     callback, implementing the {IRandomiserCallback} interface.
+    /// @param callbackGasLimit Gas limit for callback
     /// @param signature Beacon signature of the round, from which randomness
     ///     is derived.
     function fulfillRandomness(
         uint256 requestId,
         address requester,
         uint256 round,
-        address callbackContract,
+        uint256 callbackGasLimit,
         uint256[2] calldata signature
     ) external {
+        _assertNoReentrance();
+
         if (
             requests[requestId] !=
-            hashRequest(requestId, requester, round, callbackContract)
+            hashRequest(requestId, requester, round, callbackGasLimit)
         ) {
             revert InvalidRequestHash();
         }
@@ -221,10 +237,16 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
             )
         );
 
-        IRandomiserCallback(callbackContract).receiveRandomWords{gas: 500_000}(
-            requestId,
-            randomWords
+        reentranceLock = true;
+        Gas.callWithExactGas(
+            callbackGasLimit,
+            requester,
+            abi.encodePacked(
+                IRandomiserCallback.receiveRandomWords.selector,
+                abi.encode(requestId, randomWords)
+            )
         );
+        reentranceLock = false;
 
         emit RandomnessFulfilled(requestId, randomWords);
     }

@@ -7,10 +7,9 @@ interface IRNGesusReloaded {
     ///     beacon round closest to this timestamp (rounding up to the nearest
     ///     future round) will be used as the round from which to derive
     ///     randomness.
-    /// @param callbackContract Address of contract that should receive the
-    ///     callback, implementing the {IRandomiserCallback} interface.
+    /// @param callbackGasLimit Gas limit for callback
     function requestRandomness(
         uint256 deadline,
-        address callbackContract
+        uint256 callbackGasLimit
     ) external payable returns (uint256);
 }

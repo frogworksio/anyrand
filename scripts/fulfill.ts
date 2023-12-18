@@ -8,7 +8,7 @@ const REQUEST = {
     beaconPubKeyHash: '0xF83ADA85DE740DD123163AEF4DF20A378211F9C6F82268151F268A5750040CF4',
     requester: '0x130cb8836bb2a75a420607c2ca4277ecca600ceb',
     round: 222886,
-    callbackContract: '0x130cb8836bb2a75a420607c2ca4277ecca600ceb',
+    callbackGasLimit: 500_000,
     beacon: {
         round: 222886,
         randomness: '42c96711c23ed3297570d3a22a73d0a69ff1e383c45c2c97e7d413e5229d5fd6',
@@ -24,14 +24,13 @@ async function main() {
         deployer,
     ).waitForDeployment()
 
-    const { requestId, beaconPubKeyHash, requester, round, callbackContract, beacon } = REQUEST
+    const { requestId, beaconPubKeyHash, requester, round, callbackGasLimit, beacon } = REQUEST
     const tx = await rngesus
         .fulfillRandomness(
             requestId,
-            beaconPubKeyHash,
             requester,
             round,
-            callbackContract,
+            callbackGasLimit,
             decodeG1(beacon.signature),
         )
         .then((tx) => tx.wait(1))

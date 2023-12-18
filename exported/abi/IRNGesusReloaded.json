@@ -7,9 +7,9 @@
         "type": "uint256"
       },
       {
-        "internalType": "address",
-        "name": "callbackContract",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "callbackGasLimit",
+        "type": "uint256"
       }
     ],
     "name": "requestRandomness",

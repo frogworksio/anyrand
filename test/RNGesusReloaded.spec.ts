@@ -9,7 +9,6 @@ import {
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 import { getBytes, keccak256, parseEther } from 'ethers'
 import { expect } from 'chai'
-import { DRAND_BN254_INFO, decodeG2, decodeG1 } from '../lib/drand'
 import {
     Fr,
     G2,
@@ -38,6 +37,7 @@ describe('RNGesusReloaded', () => {
             beaconGenesisTimestamp,
             beaconPeriod,
             parseEther('0.001'),
+            2_000_000,
         )
 
         consumer = await new RNGesusReloadedConsumer__factory(deployer).deploy(
@@ -46,12 +46,13 @@ describe('RNGesusReloaded', () => {
     })
 
     it('runs happy path', async () => {
+        const callbackGasLimit = 500_000
         const getRandomTx = await consumer
-            .getRandom(10, {
+            .getRandom(10, callbackGasLimit, {
                 value: parseEther('0.001'),
             })
             .then((tx) => tx.wait(1))
-        const { requestId, requester, round, callbackContract } = rngesus.interface.decodeEventLog(
+        const { requestId, requester, round } = rngesus.interface.decodeEventLog(
             'RandomnessRequested',
             getRandomTx?.logs[0].data!,
             getRandomTx?.logs[0].topics,
@@ -60,7 +61,6 @@ describe('RNGesusReloaded', () => {
             beaconPubKeyHash: string
             requester: string
             round: bigint
-            callbackContract: string
         }
 
         // Simulate drand beacon response
@@ -77,7 +77,7 @@ describe('RNGesusReloaded', () => {
             requestId,
             requester,
             round,
-            callbackContract,
+            callbackGasLimit,
             serialiseG1Point(roundBeacon.signature),
         )
         expect(fulfillTx).to.emit(rngesus, 'RandomnessFulfilled')

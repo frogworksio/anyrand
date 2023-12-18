@@ -20,6 +20,11 @@
         "internalType": "uint256",
         "name": "initialRequestPrice",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxCallbackGasLimit_",
+        "type": "uint256"
       }
     ],
     "stateMutability": "nonpayable",
@@ -28,6 +33,11 @@
   {
     "inputs": [],
     "name": "IncorrectPayment",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientGas",
     "type": "error"
   },
   {
@@ -62,6 +72,11 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "OverGasLimit",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -85,6 +100,11 @@
   },
   {
     "inputs": [],
+    "name": "Reentrant",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "TransferFailed",
     "type": "error"
   },
@@ -99,6 +119,19 @@
       }
     ],
     "name": "ETHWithdrawn",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newMaxCallbackGasLimit",
+        "type": "uint256"
+      }
+    ],
+    "name": "MaxCallbackGasLimitUpdated",
     "type": "event"
   },
   {
@@ -159,12 +192,6 @@
         "internalType": "uint256",
         "name": "round",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "callbackContract",
-        "type": "address"
       }
     ],
     "name": "RandomnessRequested",
@@ -201,9 +228,9 @@
         "type": "uint256"
       },
       {
-        "internalType": "address",
-        "name": "callbackContract",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "callbackGasLimit",
+        "type": "uint256"
       },
       {
         "internalType": "uint256[2]",
@@ -237,6 +264,19 @@
         "internalType": "uint256[4]",
         "name": "",
         "type": "uint256[4]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "maxCallbackGasLimit",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -361,9 +401,9 @@
         "type": "uint256"
       },
       {
-        "internalType": "address",
-        "name": "callbackContract",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "callbackGasLimit",
+        "type": "uint256"
       }
     ],
     "name": "requestRandomness",

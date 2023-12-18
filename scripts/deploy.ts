@@ -4,25 +4,21 @@ import { parseEther } from 'ethers'
 import { DRAND_BN254_INFO, decodeG2 } from '../lib/drand'
 
 const REQUEST_PRICE = parseEther('0.001')
+const MAX_CALLBACK_GAS_LIMIT = 2_000_000
 
 async function main() {
     const [deployer] = await ethers.getSigners()
 
     const rngesus = await new RNGesusReloaded__factory(deployer)
-        .deploy(REQUEST_PRICE)
+        .deploy(
+            decodeG2(DRAND_BN254_INFO.public_key),
+            BigInt(DRAND_BN254_INFO.genesis_time),
+            BigInt(DRAND_BN254_INFO.period),
+            REQUEST_PRICE,
+            MAX_CALLBACK_GAS_LIMIT,
+        )
         .then((tx) => tx.waitForDeployment())
     console.log(`RNGesusReloaded deployed at: ${await rngesus.getAddress()}`)
-
-    // Register beacon
-    const publicKey = decodeG2(DRAND_BN254_INFO.public_key)
-    const beacon = {
-        publicKey,
-        period: BigInt(DRAND_BN254_INFO.period),
-        genesisTimestamp: BigInt(DRAND_BN254_INFO.genesis_time),
-    }
-    await rngesus.registerBeacon(beacon)
-    const pkh = (await rngesus.hashPubKey(publicKey)) as `0x${string}`
-    console.log(`Registered beacon with PKH: ${pkh}`)
 
     const consumer = await new RNGesusReloadedConsumer__factory(deployer)
         .deploy(await rngesus.getAddress())
