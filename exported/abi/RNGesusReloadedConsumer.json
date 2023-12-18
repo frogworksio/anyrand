@@ -67,11 +67,6 @@
   {
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "beaconPubKeyHash",
-        "type": "bytes32"
-      },
-      {
         "internalType": "uint256",
         "name": "secondsToWait",
         "type": "uint256"

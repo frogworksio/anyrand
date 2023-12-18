@@ -8,14 +8,18 @@ import {IRNGesusReloaded} from "./interfaces/IRNGesusReloaded.sol";
 
 /// @title RNGesusReloaded
 contract RNGesusReloaded is IRNGesusReloaded, Ownable {
-    struct DrandBeacon {
-        /// @notice Group PK in G2
-        uint256[4] publicKey;
-        /// @notice The beacon's period, in seconds
-        uint256 period;
-        /// @notice Genesis timestamp
-        uint256 genesisTimestamp;
-    }
+    /// @notice Group PK Re(x) in G2
+    uint256 public immutable publicKey0;
+    /// @notice Group PK Im(x) in G2
+    uint256 public immutable publicKey1;
+    /// @notice Group PK Re(y) in G2
+    uint256 public immutable publicKey2;
+    /// @notice Group PK Im(y) in G2
+    uint256 public immutable publicKey3;
+    /// @notice The beacon's period, in seconds
+    uint256 public immutable period;
+    /// @notice Genesis timestamp
+    uint256 public immutable genesisTimestamp;
 
     /// @notice The price of entropy
     uint256 public requestPrice;
@@ -23,12 +27,9 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     uint256 public nextRequestId;
     /// @notice Request hashes - see {RNGesusReloaded-hashRequest}
     mapping(uint256 requestId => bytes32) public requests;
-    /// @notice Registered drand beacons
-    mapping(bytes32 pubKeyHash => DrandBeacon) public beacons;
 
     event RandomnessRequested(
         uint256 indexed requestId,
-        bytes32 beaconPubKeyHash,
         address requester,
         uint256 round,
         address callbackContract
@@ -36,55 +37,71 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     event RandomnessFulfilled(uint256 indexed requestId, uint256[] randomWords);
     event RequestPriceUpdated(uint256 newPrice);
     event ETHWithdrawn(uint256 amount);
-    event BeaconRegistered(bytes32 pubKeyHash);
-    event BeaconRemoved(bytes32 pubKeyHash);
 
     error TransferFailed();
     error IncorrectPayment();
     error InvalidRequestHash();
     error InvalidSignature();
-    error BeaconDoesNotExist();
     error InvalidPublicKey(uint256[4] pubKey);
-    error BeaconExists();
     error InvalidBeaconConfiguration();
+    error InvalidDeadline();
 
-    constructor(uint256 initialRequestPrice) Ownable(msg.sender) {
+    constructor(
+        uint256[4] memory publicKey_,
+        uint256 genesisTimestamp_,
+        uint256 period_,
+        uint256 initialRequestPrice
+    ) Ownable(msg.sender) {
+        if (!BLS.isValidPublicKey(publicKey_)) {
+            revert InvalidPublicKey(publicKey_);
+        }
+        publicKey0 = publicKey_[0];
+        publicKey1 = publicKey_[1];
+        publicKey2 = publicKey_[2];
+        publicKey3 = publicKey_[3];
+
+        if (genesisTimestamp_ == 0 || period_ == 0) {
+            revert InvalidBeaconConfiguration();
+        }
+        genesisTimestamp = genesisTimestamp_;
+        period = period_;
+
         requestPrice = initialRequestPrice;
         emit RequestPriceUpdated(initialRequestPrice);
     }
 
-    /// @notice Compute keccak256 of a public key
-    /// @param publicKey Public key, a point on G2
-    function hashPubKey(
-        uint256[4] memory publicKey
-    ) public pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    publicKey[0],
-                    publicKey[1],
-                    publicKey[2],
-                    publicKey[3]
-                )
-            );
+    /// @notice Return this beacon's public key in memory
+    function getPubKey() public view returns (uint256[4] memory) {
+        uint256[4] memory pubKey;
+        pubKey[0] = publicKey0;
+        pubKey[1] = publicKey1;
+        pubKey[2] = publicKey2;
+        pubKey[3] = publicKey3;
+        return pubKey;
     }
 
     /// @notice Compute keccak256 of a request
-    /// @param beaconPubKeyHash PKH of the beacon from which randomness will be
-    ///     derived.
+    /// @param requestId Request id, acts as a nonce
     /// @param requester Address of account that initiated the request.
     /// @param round Target round of the drand beacon.
     /// @param callbackContract Address of contract that should receive the
     ///     callback, implementing the {IRandomiserCallback} interface.
     function hashRequest(
-        bytes32 beaconPubKeyHash,
+        uint256 requestId,
         address requester,
         uint256 round,
         address callbackContract
-    ) internal pure returns (bytes32) {
+    ) internal view returns (bytes32) {
         return
             keccak256(
-                abi.encode(beaconPubKeyHash, requester, round, callbackContract)
+                abi.encode(
+                    block.chainid,
+                    address(this),
+                    requestId,
+                    requester,
+                    round,
+                    callbackContract
+                )
             );
     }
 
@@ -109,39 +126,8 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
         emit RequestPriceUpdated(newPrice);
     }
 
-    /// @notice Register drand beacon
-    /// TODO: I think drand produces a signature on genesis, can use that to
-    ///     verify correctness
-    /// @param drandBeacon Beacon details
-    function registerBeacon(
-        DrandBeacon calldata drandBeacon
-    ) external onlyOwner {
-        if (drandBeacon.genesisTimestamp == 0) {
-            revert InvalidBeaconConfiguration();
-        }
-        if (!BLS.isValidPublicKey(drandBeacon.publicKey)) {
-            revert InvalidPublicKey(drandBeacon.publicKey);
-        }
-        bytes32 pubKeyHash = hashPubKey(drandBeacon.publicKey);
-        if (beacons[pubKeyHash].genesisTimestamp != 0) {
-            revert BeaconExists();
-        }
-        beacons[pubKeyHash] = drandBeacon;
-        emit BeaconRegistered(pubKeyHash);
-    }
-
-    /// @notice Remove an existing beacon
-    function expelBeacon(bytes32 pubKeyHash) external onlyOwner {
-        if (beacons[pubKeyHash].genesisTimestamp == 0) {
-            revert BeaconDoesNotExist();
-        }
-        delete beacons[pubKeyHash];
-        emit BeaconRemoved(pubKeyHash);
-    }
-
     /// @notice Request randomness
-    /// @param beaconPubKeyHash PKH of the beacon from which randomness will be
-    ///     derived.
+    /// TODO: Add callback gas limit
     /// @param deadline Timestamp of when the randomness should be fulfilled. A
     ///     beacon round closest to this timestamp (rounding up to the nearest
     ///     future round) will be used as the round from which to derive
@@ -149,7 +135,6 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     /// @param callbackContract Address of contract that should receive the
     ///     callback, implementing the {IRandomiserCallback} interface.
     function requestRandomness(
-        bytes32 beaconPubKeyHash,
         uint256 deadline,
         address callbackContract
     ) external payable override returns (uint256) {
@@ -157,24 +142,21 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
             revert IncorrectPayment();
         }
 
-        DrandBeacon memory beacon = beacons[beaconPubKeyHash];
-        require(beacon.genesisTimestamp != 0, "Unknown beacon");
-
         uint256 requestId = nextRequestId;
         nextRequestId++;
 
         // Calculate nearest round from deadline (rounding to the future)
-        require(
-            deadline >= block.timestamp + beacon.period,
-            "Deadline must be in the future"
-        );
-        uint256 delta = deadline - beacon.genesisTimestamp;
-        uint64 round = uint64(
-            (delta / beacon.period) + (delta % beacon.period)
-        );
+        if (
+            (deadline < genesisTimestamp) ||
+            deadline < (block.timestamp + period)
+        ) {
+            revert InvalidDeadline();
+        }
+        uint256 delta = deadline - genesisTimestamp;
+        uint64 round = uint64((delta / period) + (delta % period));
 
         requests[requestId] = hashRequest(
-            beaconPubKeyHash,
+            requestId,
             msg.sender,
             round,
             callbackContract
@@ -182,7 +164,6 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
 
         emit RandomnessRequested(
             requestId,
-            beaconPubKeyHash,
             msg.sender,
             round,
             callbackContract
@@ -193,8 +174,6 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
 
     /// @notice Fulfill a randomness request (for beacon keepers)
     /// @param requestId Which request id to fulfill
-    /// @param beaconPubKeyHash PKH of the beacon from which randomness will be
-    ///     derived.
     /// @param requester Address of account that initiated the request.
     /// @param round Target round of the drand beacon.
     /// @param callbackContract Address of contract that should receive the
@@ -203,7 +182,6 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     ///     is derived.
     function fulfillRandomness(
         uint256 requestId,
-        bytes32 beaconPubKeyHash,
         address requester,
         uint256 round,
         address callbackContract,
@@ -211,7 +189,7 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     ) external {
         if (
             requests[requestId] !=
-            hashRequest(beaconPubKeyHash, requester, round, callbackContract)
+            hashRequest(requestId, requester, round, callbackContract)
         ) {
             revert InvalidRequestHash();
         }
@@ -227,11 +205,7 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
 
         uint256[2] memory message = BLS.hashToPoint(hashedRoundBytes);
         bool isValidSignature = BLS.isValidSignature(signature) &&
-            BLS.verifySingle(
-                signature,
-                beacons[beaconPubKeyHash].publicKey,
-                message
-            );
+            BLS.verifySingle(signature, getPubKey(), message);
         if (!isValidSignature) {
             revert InvalidSignature();
         }

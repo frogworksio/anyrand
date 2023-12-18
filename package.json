@@ -30,6 +30,7 @@
     "hardhat-gas-reporter": "^1.0.9",
     "hardhat-storage-layout": "^0.1.7",
     "hardhat-storage-layout-changes": "^0.1.2",
+    "mcl-wasm": "^1.4.0",
     "prettier": "^3.0.3",
     "prettier-plugin-solidity": "^1.1.3",
     "solidity-coverage": "^0.8.1",

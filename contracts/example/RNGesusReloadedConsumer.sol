@@ -20,13 +20,10 @@ contract RNGesusReloadedConsumer is Ownable, IRandomiserCallback {
     }
 
     /// @notice Request a random number, calling back to this contract
-    function getRandom(
-        bytes32 beaconPubKeyHash,
-        uint256 secondsToWait
-    ) external payable {
+    function getRandom(uint256 secondsToWait) external payable {
         uint256 requestId = RNGesusReloaded(rngesus).requestRandomness{
             value: msg.value
-        }(beaconPubKeyHash, block.timestamp + secondsToWait, address(this));
+        }(block.timestamp + secondsToWait, address(this));
         randomness[requestId] = 1;
     }
 
