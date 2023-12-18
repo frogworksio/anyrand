@@ -9,30 +9,34 @@ const MAX_CALLBACK_GAS_LIMIT = 2_000_000
 async function main() {
     const [deployer] = await ethers.getSigners()
 
+    const rngesusArgs: Parameters<RNGesusReloaded__factory['deploy']> = [
+        decodeG2(DRAND_BN254_INFO.public_key),
+        BigInt(DRAND_BN254_INFO.genesis_time),
+        BigInt(DRAND_BN254_INFO.period),
+        REQUEST_PRICE,
+        MAX_CALLBACK_GAS_LIMIT,
+    ]
     const rngesus = await new RNGesusReloaded__factory(deployer)
-        .deploy(
-            decodeG2(DRAND_BN254_INFO.public_key),
-            BigInt(DRAND_BN254_INFO.genesis_time),
-            BigInt(DRAND_BN254_INFO.period),
-            REQUEST_PRICE,
-            MAX_CALLBACK_GAS_LIMIT,
-        )
+        .deploy(...rngesusArgs)
         .then((tx) => tx.waitForDeployment())
     console.log(`RNGesusReloaded deployed at: ${await rngesus.getAddress()}`)
 
+    const consumerArgs: Parameters<RNGesusReloadedConsumer__factory['deploy']> = [
+        await rngesus.getAddress(),
+    ]
     const consumer = await new RNGesusReloadedConsumer__factory(deployer)
-        .deploy(await rngesus.getAddress())
+        .deploy(...consumerArgs)
         .then((tx) => tx.waitForDeployment())
     console.log(`Consumer deployed at: ${await consumer.getAddress()}`)
 
     await new Promise((resolve) => setTimeout(resolve, 30_000))
     await run('verify:verify', {
         address: await rngesus.getAddress(),
-        constructorArguments: [REQUEST_PRICE],
+        constructorArguments: rngesusArgs,
     })
     await run('verify:verify', {
         address: await consumer.getAddress(),
-        constructorArguments: [await rngesus.getAddress()],
+        constructorArguments: consumerArgs,
     })
 }
 
