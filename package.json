@@ -23,7 +23,7 @@
     "@types/mocha": "^10.0.1",
     "chai": "^4.2.0",
     "dotenv": "^16.3.1",
-    "ethers": "^6.8.0",
+    "ethers": "^6.9.0",
     "hardhat": "^2.17.2",
     "hardhat-abi-exporter": "^2.10.1",
     "hardhat-contract-sizer": "^2.10.0",
@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.0",
-    "@openzeppelin/contracts-upgradeable": "^5.0.0"
+    "@openzeppelin/contracts-upgradeable": "^5.0.0",
+    "@scroll-tech/contracts": "^0.1.0"
   }
 }

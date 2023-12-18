@@ -7,7 +7,7 @@ import {
     RNGesusReloaded__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { getBytes, keccak256, parseEther } from 'ethers'
+import { Wallet, formatEther, formatUnits, getBytes, keccak256, parseEther } from 'ethers'
 import { expect } from 'chai'
 import {
     Fr,
@@ -38,6 +38,7 @@ describe('RNGesusReloaded', () => {
             beaconPeriod,
             parseEther('0.001'),
             2_000_000,
+            1800, // 30 mins
         )
 
         consumer = await new RNGesusReloadedConsumer__factory(deployer).deploy(
@@ -47,9 +48,15 @@ describe('RNGesusReloaded', () => {
 
     it('runs happy path', async () => {
         const callbackGasLimit = 500_000
+        const gasPrice = await ethers.provider.getFeeData().then((fee) => fee.gasPrice!)
+        console.log(`Gas price:\t${formatUnits(gasPrice, 'gwei')} gwei`)
+        const requestPrice = await rngesus.getRequestPrice(callbackGasLimit, {
+            gasPrice,
+        })
+        console.log(`Request price:\t${formatEther(requestPrice)} ETH`)
         const getRandomTx = await consumer
             .getRandom(10, callbackGasLimit, {
-                value: parseEther('0.001'),
+                value: requestPrice,
             })
             .then((tx) => tx.wait(1))
         const { requestId, requester, round } = rngesus.interface.decodeEventLog(
@@ -73,15 +80,28 @@ describe('RNGesusReloaded', () => {
 
         // Wait 10s & fulfill
         await time.increase(10)
-        const fulfillTx = await rngesus.fulfillRandomness(
+        const fulfillRandomnessArgs: Parameters<typeof rngesus.fulfillRandomness> = [
             requestId,
             requester,
             round,
             callbackGasLimit,
             serialiseG1Point(roundBeacon.signature),
-        )
+        ]
+        const fulfillTx = await rngesus.fulfillRandomness(...fulfillRandomnessArgs)
         expect(fulfillTx).to.emit(rngesus, 'RandomnessFulfilled')
         const randomness = await consumer.randomness(requestId)
         expect(randomness).to.not.eq(0)
+
+        // Calcs
+        const rawSignedTx = getBytes(
+            await Wallet.createRandom().signTransaction(
+                await rngesus.fulfillRandomness.populateTransaction(...fulfillRandomnessArgs),
+            ),
+        )
+        const zeros = rawSignedTx.filter((v) => v === 0).byteLength
+        const nonZeros = rawSignedTx.byteLength - zeros
+        console.log(
+            `Raw signed fulfillRandomness tx: ${zeros} zero bytes, ${nonZeros} non-zero bytes`,
+        )
     })
 })

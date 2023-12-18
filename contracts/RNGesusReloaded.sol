@@ -22,10 +22,13 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     /// @notice Genesis timestamp
     uint256 public immutable genesisTimestamp;
 
-    /// @notice The price of entropy
-    uint256 public requestPrice;
+    /// @notice The base price of entropy
+    uint256 public baseRequestPrice;
     /// @notice Maximum callback gas limit
     uint256 public maxCallbackGasLimit;
+    /// @notice Maximum number of seconds in the future from which randomness
+    ///     can be requested
+    uint256 public maxDeadlineDelta;
     /// @notice Self-explanatory
     uint256 public nextRequestId;
     /// @notice Request hashes - see {RNGesusReloaded-hashRequest}
@@ -43,15 +46,20 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     event RequestPriceUpdated(uint256 newPrice);
     event ETHWithdrawn(uint256 amount);
     event MaxCallbackGasLimitUpdated(uint256 newMaxCallbackGasLimit);
+    event MaxDeadlineDeltaUpdated(uint256 maxDeadlineDelta);
 
-    error TransferFailed();
-    error IncorrectPayment();
-    error OverGasLimit();
-    error InvalidRequestHash();
-    error InvalidSignature();
+    error TransferFailed(address to, uint256 value);
+    error IncorrectPayment(uint256 got, uint256 want);
+    error OverGasLimit(uint256 callbackGasLimit);
+    error InvalidRequestHash(bytes32 requestHash);
+    error InvalidSignature(
+        uint256[4] pubKey,
+        uint256[2] message,
+        uint256[2] signature
+    );
     error InvalidPublicKey(uint256[4] pubKey);
-    error InvalidBeaconConfiguration();
-    error InvalidDeadline();
+    error InvalidBeaconConfiguration(uint256 genesisTimestamp, uint256 period);
+    error InvalidDeadline(uint256 deadline);
     error InsufficientGas();
     error Reentrant();
 
@@ -60,7 +68,8 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
         uint256 genesisTimestamp_,
         uint256 period_,
         uint256 initialRequestPrice,
-        uint256 maxCallbackGasLimit_
+        uint256 maxCallbackGasLimit_,
+        uint256 maxDeadlineDelta_
     ) Ownable(msg.sender) {
         if (!BLS.isValidPublicKey(publicKey_)) {
             revert InvalidPublicKey(publicKey_);
@@ -71,16 +80,19 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
         publicKey3 = publicKey_[3];
 
         if (genesisTimestamp_ == 0 || period_ == 0) {
-            revert InvalidBeaconConfiguration();
+            revert InvalidBeaconConfiguration(genesisTimestamp_, period_);
         }
         genesisTimestamp = genesisTimestamp_;
         period = period_;
 
-        requestPrice = initialRequestPrice;
+        baseRequestPrice = initialRequestPrice;
         emit RequestPriceUpdated(initialRequestPrice);
 
         maxCallbackGasLimit = maxCallbackGasLimit_;
         emit MaxCallbackGasLimitUpdated(maxCallbackGasLimit_);
+
+        maxDeadlineDelta = maxDeadlineDelta_;
+        emit MaxDeadlineDeltaUpdated(maxDeadlineDelta_);
     }
 
     /// @notice Assert that the reentrance lock is not set
@@ -132,7 +144,7 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
         }
         (bool success, ) = msg.sender.call{value: amount}("");
         if (!success) {
-            revert TransferFailed();
+            revert TransferFailed(msg.sender, amount);
         }
         emit ETHWithdrawn(amount);
     }
@@ -140,12 +152,36 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     /// @notice Update request price
     /// @param newPrice The new price
     function setPrice(uint256 newPrice) external onlyOwner {
-        requestPrice = newPrice;
+        baseRequestPrice = newPrice;
         emit RequestPriceUpdated(newPrice);
     }
 
+    /// @notice Compute the total request price
+    function getRequestPrice(
+        uint256 callbackGasLimit
+    ) public view virtual returns (uint256) {
+        return baseRequestPrice + (200_000 + callbackGasLimit) * tx.gasprice;
+    }
+
+    /// @notice Update max callback gas limit
+    /// @param newMaxCallbackGasLimit The new max callback gas limit
+    function setMaxCallbackGasLimit(
+        uint256 newMaxCallbackGasLimit
+    ) external onlyOwner {
+        maxCallbackGasLimit = newMaxCallbackGasLimit;
+        emit MaxCallbackGasLimitUpdated(newMaxCallbackGasLimit);
+    }
+
+    /// @notice Update max deadline delta
+    /// @param newMaxDeadlineDelta The new max deadline delta
+    function setMaxDeadlineDelta(
+        uint256 newMaxDeadlineDelta
+    ) external onlyOwner {
+        maxDeadlineDelta = newMaxDeadlineDelta;
+        emit MaxDeadlineDeltaUpdated(newMaxDeadlineDelta);
+    }
+
     /// @notice Request randomness
-    /// TODO: Add callback gas limit
     /// @param deadline Timestamp of when the randomness should be fulfilled. A
     ///     beacon round closest to this timestamp (rounding up to the nearest
     ///     future round) will be used as the round from which to derive
@@ -156,11 +192,15 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
         uint256 callbackGasLimit
     ) external payable override returns (uint256) {
         _assertNoReentrance();
-        if (msg.value != requestPrice) {
-            revert IncorrectPayment();
+        uint256 reqPrice = getRequestPrice(callbackGasLimit);
+        if (msg.value < reqPrice) {
+            revert IncorrectPayment(msg.value, reqPrice);
         }
         if (callbackGasLimit > maxCallbackGasLimit) {
-            revert OverGasLimit();
+            revert OverGasLimit(callbackGasLimit);
+        }
+        if (deadline > block.timestamp + maxDeadlineDelta) {
+            revert InvalidDeadline(deadline);
         }
 
         uint256 requestId = nextRequestId;
@@ -171,7 +211,7 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
             (deadline < genesisTimestamp) ||
             deadline < (block.timestamp + period)
         ) {
-            revert InvalidDeadline();
+            revert InvalidDeadline(deadline);
         }
         uint256 delta = deadline - genesisTimestamp;
         uint64 round = uint64((delta / period) + (delta % period));
@@ -209,11 +249,14 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     ) external {
         _assertNoReentrance();
 
-        if (
-            requests[requestId] !=
-            hashRequest(requestId, requester, round, callbackGasLimit)
-        ) {
-            revert InvalidRequestHash();
+        bytes32 reqHash = hashRequest(
+            requestId,
+            requester,
+            round,
+            callbackGasLimit
+        );
+        if (requests[requestId] != reqHash) {
+            revert InvalidRequestHash(reqHash);
         }
         requests[requestId] = bytes32(0);
 
@@ -225,11 +268,12 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
             mstore(add(0x20, hashedRoundBytes), hashedRound)
         }
 
+        uint256[4] memory pubKey = getPubKey();
         uint256[2] memory message = BLS.hashToPoint(hashedRoundBytes);
         bool isValidSignature = BLS.isValidSignature(signature) &&
-            BLS.verifySingle(signature, getPubKey(), message);
+            BLS.verifySingle(signature, pubKey, message);
         if (!isValidSignature) {
-            revert InvalidSignature();
+            revert InvalidSignature(pubKey, message, signature);
         }
 
         uint256[] memory randomWords = new uint256[](1);

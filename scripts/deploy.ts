@@ -5,6 +5,7 @@ import { DRAND_BN254_INFO, decodeG2 } from '../lib/drand'
 
 const REQUEST_PRICE = parseEther('0.001')
 const MAX_CALLBACK_GAS_LIMIT = 2_000_000
+const MAX_DEADLINE_DELTA = 1800 // 30 mins into the future
 
 async function main() {
     const [deployer] = await ethers.getSigners()
@@ -15,6 +16,7 @@ async function main() {
         BigInt(DRAND_BN254_INFO.period),
         REQUEST_PRICE,
         MAX_CALLBACK_GAS_LIMIT,
+        MAX_DEADLINE_DELTA,
     ]
     const rngesus = await new RNGesusReloaded__factory(deployer)
         .deploy(...rngesusArgs)
