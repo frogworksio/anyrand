@@ -157,6 +157,8 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     }
 
     /// @notice Compute the total request price
+    /// @param callbackGasLimit The callback gas limit that will be used for
+    ///     the randomness request
     function getRequestPrice(
         uint256 callbackGasLimit
     ) public view virtual returns (uint256) {
