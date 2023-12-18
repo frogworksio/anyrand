@@ -4,9 +4,10 @@ pragma solidity 0.8.23;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BLS} from "./bls/BLS.sol";
 import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
+import {IRNGesusReloaded} from "./interfaces/IRNGesusReloaded.sol";
 
 /// @title RNGesusReloaded
-contract RNGesusReloaded is Ownable {
+contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     struct DrandBeacon {
         /// @notice Group PK in G2
         uint256[4] publicKey;
@@ -151,7 +152,7 @@ contract RNGesusReloaded is Ownable {
         bytes32 beaconPubKeyHash,
         uint256 deadline,
         address callbackContract
-    ) external payable returns (uint256) {
+    ) external payable override returns (uint256) {
         if (msg.value != requestPrice) {
             revert IncorrectPayment();
         }
