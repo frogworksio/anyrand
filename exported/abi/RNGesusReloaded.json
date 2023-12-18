@@ -192,6 +192,12 @@
         "internalType": "uint256",
         "name": "round",
         "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "callbackGasLimit",
+        "type": "uint256"
       }
     ],
     "name": "RandomnessRequested",

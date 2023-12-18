@@ -36,7 +36,8 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     event RandomnessRequested(
         uint256 indexed requestId,
         address requester,
-        uint256 round
+        uint256 round,
+        uint256 callbackGasLimit
     );
     event RandomnessFulfilled(uint256 indexed requestId, uint256[] randomWords);
     event RequestPriceUpdated(uint256 newPrice);
@@ -182,7 +183,12 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
             callbackGasLimit
         );
 
-        emit RandomnessRequested(requestId, msg.sender, round);
+        emit RandomnessRequested(
+            requestId,
+            msg.sender,
+            round,
+            callbackGasLimit
+        );
 
         return requestId;
     }
