@@ -282,7 +282,7 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
         randomWords[0] = uint256(
             keccak256(
                 abi.encode(
-                    keccak256(abi.encode(signature[0], signature[0])),
+                    keccak256(abi.encode(signature[0], signature[1])),
                     requestId,
                     requester
                 )
