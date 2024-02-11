@@ -48,6 +48,11 @@ const config: HardhatUserConfig = {
             url: process.env.SEPOLIA_URL as string,
             accounts: [process.env.MAINNET_PK as string],
         },
+        base: {
+            chainId: 8453,
+            url: process.env.BASE_URL as string,
+            accounts: [process.env.MAINNET_PK as string],
+        },
     },
     gasReporter: {
         enabled: true,
@@ -60,6 +65,7 @@ const config: HardhatUserConfig = {
             scroll: process.env.SCROLLSCAN_API_KEY as string,
             scrollSepolia: process.env.SCROLLSCAN_API_KEY as string,
             sepolia: process.env.ETHERSCAN_API_KEY as string,
+            base: process.env.BASESCAN_API_KEY as string,
         },
         customChains: [
             {

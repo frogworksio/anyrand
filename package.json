@@ -5,6 +5,7 @@
   "scripts": {
     "deploy:scrolltestnet": "yarn hardhat --network scrollSepolia run scripts/deployScroll.ts",
     "deploy:sepolia": "yarn hardhat --network sepolia run scripts/deploy.ts",
+    "deploy:base": "yarn hardhat --network base run scripts/deployBase.ts",
     "test": "yarn hardhat --network hardhat test",
     "coverage": "yarn hardhat --network hardhat coverage"
   },
