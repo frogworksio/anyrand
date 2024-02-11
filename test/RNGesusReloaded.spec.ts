@@ -7,19 +7,27 @@ import {
     RNGesusReloaded__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { Wallet, formatEther, formatUnits, getBytes, keccak256, parseEther } from 'ethers'
-import { expect } from 'chai'
 import {
-    Fr,
-    G2,
-    createKeyPair,
-    hashToPoint,
-    serialiseG1Point,
-    serialiseG2Point,
-    sign,
-} from '../lib/bls'
+    Wallet,
+    formatEther,
+    formatUnits,
+    getBytes,
+    keccak256,
+    parseEther,
+    toUtf8Bytes,
+} from 'ethers'
+import { expect } from 'chai'
+import { BlsBn254 } from '@kevincharm/bls-bn254'
+import type { G1, G2, Fr, Fp, Fp2 } from 'mcl-wasm'
+
+const DOMAIN = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SSWU_RO_NUL_'
 
 describe('RNGesusReloaded', () => {
+    let bls: BlsBn254
+    before(async () => {
+        bls = await BlsBn254.create()
+    })
+
     let deployer: SignerWithAddress
     let bob: SignerWithAddress
     let rngesus: RNGesusReloaded
@@ -31,9 +39,9 @@ describe('RNGesusReloaded', () => {
     beforeEach(async () => {
         ;[deployer, bob] = await ethers.getSigners()
         // drand beacon details
-        ;({ pubKey: beaconPubKey, secretKey: beaconSecretKey } = await createKeyPair())
+        ;({ pubKey: beaconPubKey, secretKey: beaconSecretKey } = await bls.createKeyPair())
         rngesus = await new RNGesusReloaded__factory(deployer).deploy(
-            serialiseG2Point(beaconPubKey),
+            bls.serialiseG2Point(beaconPubKey),
             beaconGenesisTimestamp,
             beaconPeriod,
             parseEther('0.001'),
@@ -72,10 +80,13 @@ describe('RNGesusReloaded', () => {
 
         // Simulate drand beacon response
         const roundBytes = getBytes('0x' + round.toString(16).padStart(16, '0'))
-        const M = await hashToPoint(keccak256(roundBytes) as `0x${string}`)
+        const M = await bls.hashToPoint(
+            toUtf8Bytes(DOMAIN),
+            getBytes(keccak256(roundBytes) as `0x${string}`),
+        )
         const roundBeacon = {
             round,
-            signature: await sign(M, beaconSecretKey).then(({ signature }) => signature),
+            signature: bls.sign(M, beaconSecretKey).signature,
         }
 
         // Wait 10s & fulfill
@@ -85,7 +96,7 @@ describe('RNGesusReloaded', () => {
             requester,
             round,
             callbackGasLimit,
-            serialiseG1Point(roundBeacon.signature),
+            bls.serialiseG1Point(roundBeacon.signature),
         ]
         const fulfillTx = await rngesus.fulfillRandomness(...fulfillRandomnessArgs)
         expect(fulfillTx).to.emit(rngesus, 'RandomnessFulfilled')

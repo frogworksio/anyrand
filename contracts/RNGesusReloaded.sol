@@ -2,13 +2,17 @@
 pragma solidity 0.8.23;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {BLS} from "./bls/BLS.sol";
+import {BLS} from "@kevincharm/bls-bn254/contracts/BLS.sol";
 import {Gas} from "./lib/Gas.sol";
 import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
 import {IRNGesusReloaded} from "./interfaces/IRNGesusReloaded.sol";
 
 /// @title RNGesusReloaded
 contract RNGesusReloaded is IRNGesusReloaded, Ownable {
+    /// @notice Domain separation tag
+    bytes public constant DST =
+        bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SSWU_RO_NUL_");
+
     /// @notice Group PK Re(x) in G2
     uint256 public immutable publicKey0;
     /// @notice Group PK Im(x) in G2
@@ -271,10 +275,14 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
         }
 
         uint256[4] memory pubKey = getPubKey();
-        uint256[2] memory message = BLS.hashToPoint(hashedRoundBytes);
-        bool isValidSignature = BLS.isValidSignature(signature) &&
-            BLS.verifySingle(signature, pubKey, message);
-        if (!isValidSignature) {
+        uint256[2] memory message = BLS.hashToPoint(DST, hashedRoundBytes);
+        bool isValidSignature = BLS.isValidSignature(signature);
+        (bool pairingSuccess, bool callSuccess) = BLS.verifySingle(
+            signature,
+            pubKey,
+            message
+        );
+        if (!isValidSignature || !pairingSuccess || !callSuccess) {
             revert InvalidSignature(pubKey, message, signature);
         }
 
@@ -289,6 +297,17 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
             )
         );
 
+        callWithExactGas(callbackGasLimit, requester, requestId, randomWords);
+
+        emit RandomnessFulfilled(requestId, randomWords);
+    }
+
+    function callWithExactGas(
+        uint256 callbackGasLimit,
+        address requester,
+        uint256 requestId,
+        uint256[] memory randomWords
+    ) private {
         reentranceLock = true;
         Gas.callWithExactGas(
             callbackGasLimit,
@@ -299,7 +318,5 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
             )
         );
         reentranceLock = false;
-
-        emit RandomnessFulfilled(requestId, randomWords);
     }
 }

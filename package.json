@@ -39,6 +39,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
+    "@kevincharm/bls-bn254": "^1.2.0",
     "@openzeppelin/contracts": "^5.0.0",
     "@openzeppelin/contracts-upgradeable": "^5.0.0",
     "@scroll-tech/contracts": "^0.1.0"
