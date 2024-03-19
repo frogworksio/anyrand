@@ -1,3 +1,3 @@
-# RNGesus, reloaded
+# Anyrand
 
 Deterministic unpredictability as a service

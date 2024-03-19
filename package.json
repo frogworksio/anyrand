@@ -1,7 +1,7 @@
 {
-  "name": "rngesus-reloaded",
+  "name": "anyrand",
   "version": "1.0.0",
-  "description": "RNGesus is back bitches",
+  "description": "Permissionless verifiable randomness on any EVM",
   "scripts": {
     "deploy:scrolltestnet": "yarn hardhat --network scrollSepolia run scripts/deployScroll.ts",
     "deploy:sepolia": "yarn hardhat --network sepolia run scripts/deploy.ts",
@@ -9,8 +9,8 @@
     "test": "yarn hardhat --network hardhat test",
     "coverage": "yarn hardhat --network hardhat coverage"
   },
-  "keywords": [],
-  "author": "Kevin Charm <kevin.charm@troop.finance>",
+  "keywords": ["solidity", "vrf", "drand", "bls", "bn254"],
+  "author": "Kevin Charm <k@fairy.dev>",
   "license": "UNLICENSED",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",

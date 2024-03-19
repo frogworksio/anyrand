@@ -1,8 +1,5 @@
 import { ethers, run } from 'hardhat'
-import {
-    RNGesusReloadedConsumer__factory,
-    RNGesusReloadedScroll__factory,
-} from '../typechain-types'
+import { AnyrandConsumer__factory, AnyrandScroll__factory } from '../typechain-types'
 import { parseEther } from 'ethers'
 import { DRAND_BN254_INFO, decodeG2 } from '../lib/drand'
 
@@ -13,7 +10,7 @@ const MAX_DEADLINE_DELTA = 1800 // 30 mins into the future
 async function main() {
     const [deployer] = await ethers.getSigners()
 
-    const rngesusArgs: Parameters<RNGesusReloadedScroll__factory['deploy']> = [
+    const anyrandArgs: Parameters<AnyrandScroll__factory['deploy']> = [
         decodeG2(DRAND_BN254_INFO.public_key),
         BigInt(DRAND_BN254_INFO.genesis_time),
         BigInt(DRAND_BN254_INFO.period),
@@ -21,23 +18,23 @@ async function main() {
         MAX_CALLBACK_GAS_LIMIT,
         MAX_DEADLINE_DELTA,
     ]
-    const rngesus = await new RNGesusReloadedScroll__factory(deployer)
-        .deploy(...rngesusArgs)
+    const anyrand = await new AnyrandScroll__factory(deployer)
+        .deploy(...anyrandArgs)
         .then((tx) => tx.waitForDeployment())
-    console.log(`RNGesusReloaded deployed at: ${await rngesus.getAddress()}`)
+    console.log(`Anyrand deployed at: ${await anyrand.getAddress()}`)
 
-    const consumerArgs: Parameters<RNGesusReloadedConsumer__factory['deploy']> = [
-        await rngesus.getAddress(),
+    const consumerArgs: Parameters<AnyrandConsumer__factory['deploy']> = [
+        await anyrand.getAddress(),
     ]
-    const consumer = await new RNGesusReloadedConsumer__factory(deployer)
+    const consumer = await new AnyrandConsumer__factory(deployer)
         .deploy(...consumerArgs)
         .then((tx) => tx.waitForDeployment())
     console.log(`Consumer deployed at: ${await consumer.getAddress()}`)
 
     await new Promise((resolve) => setTimeout(resolve, 30_000))
     await run('verify:verify', {
-        address: await rngesus.getAddress(),
-        constructorArguments: rngesusArgs,
+        address: await anyrand.getAddress(),
+        constructorArguments: anyrandArgs,
     })
     await run('verify:verify', {
         address: await consumer.getAddress(),

@@ -1,10 +1,10 @@
 import { ethers } from 'hardhat'
 import { time } from '@nomicfoundation/hardhat-network-helpers'
 import {
-    RNGesusReloaded,
-    RNGesusReloadedConsumer,
-    RNGesusReloadedConsumer__factory,
-    RNGesusReloaded__factory,
+    Anyrand,
+    AnyrandConsumer,
+    AnyrandConsumer__factory,
+    Anyrand__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 import {
@@ -22,7 +22,7 @@ import type { G1, G2, Fr, Fp, Fp2 } from 'mcl-wasm'
 
 const DOMAIN = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SSWU_RO_NUL_'
 
-describe('RNGesusReloaded', () => {
+describe('Anyrand', () => {
     let bls: BlsBn254
     before(async () => {
         bls = await BlsBn254.create()
@@ -30,8 +30,8 @@ describe('RNGesusReloaded', () => {
 
     let deployer: SignerWithAddress
     let bob: SignerWithAddress
-    let rngesus: RNGesusReloaded
-    let consumer: RNGesusReloadedConsumer
+    let anyrand: Anyrand
+    let consumer: AnyrandConsumer
     let beaconPubKey: G2
     let beaconSecretKey: Fr
     let beaconPeriod = 1n
@@ -40,7 +40,7 @@ describe('RNGesusReloaded', () => {
         ;[deployer, bob] = await ethers.getSigners()
         // drand beacon details
         ;({ pubKey: beaconPubKey, secretKey: beaconSecretKey } = await bls.createKeyPair())
-        rngesus = await new RNGesusReloaded__factory(deployer).deploy(
+        anyrand = await new Anyrand__factory(deployer).deploy(
             bls.serialiseG2Point(beaconPubKey),
             beaconGenesisTimestamp,
             beaconPeriod,
@@ -49,16 +49,14 @@ describe('RNGesusReloaded', () => {
             1800, // 30 mins
         )
 
-        consumer = await new RNGesusReloadedConsumer__factory(deployer).deploy(
-            await rngesus.getAddress(),
-        )
+        consumer = await new AnyrandConsumer__factory(deployer).deploy(await anyrand.getAddress())
     })
 
     it('runs happy path', async () => {
         const callbackGasLimit = 500_000
         const gasPrice = await ethers.provider.getFeeData().then((fee) => fee.gasPrice!)
         console.log(`Gas price:\t${formatUnits(gasPrice, 'gwei')} gwei`)
-        const requestPrice = await rngesus.getRequestPrice(callbackGasLimit, {
+        const requestPrice = await anyrand.getRequestPrice(callbackGasLimit, {
             gasPrice,
         })
         console.log(`Request price:\t${formatEther(requestPrice)} ETH`)
@@ -67,7 +65,7 @@ describe('RNGesusReloaded', () => {
                 value: requestPrice,
             })
             .then((tx) => tx.wait(1))
-        const { requestId, requester, round } = rngesus.interface.decodeEventLog(
+        const { requestId, requester, round } = anyrand.interface.decodeEventLog(
             'RandomnessRequested',
             getRandomTx?.logs[0].data!,
             getRandomTx?.logs[0].topics,
@@ -91,22 +89,22 @@ describe('RNGesusReloaded', () => {
 
         // Wait 10s & fulfill
         await time.increase(10)
-        const fulfillRandomnessArgs: Parameters<typeof rngesus.fulfillRandomness> = [
+        const fulfillRandomnessArgs: Parameters<typeof anyrand.fulfillRandomness> = [
             requestId,
             requester,
             round,
             callbackGasLimit,
             bls.serialiseG1Point(roundBeacon.signature),
         ]
-        const fulfillTx = await rngesus.fulfillRandomness(...fulfillRandomnessArgs)
-        expect(fulfillTx).to.emit(rngesus, 'RandomnessFulfilled')
+        const fulfillTx = await anyrand.fulfillRandomness(...fulfillRandomnessArgs)
+        expect(fulfillTx).to.emit(anyrand, 'RandomnessFulfilled')
         const randomness = await consumer.randomness(requestId)
         expect(randomness).to.not.eq(0)
 
         // Calcs
         const rawSignedTx = getBytes(
             await Wallet.createRandom().signTransaction(
-                await rngesus.fulfillRandomness.populateTransaction(...fulfillRandomnessArgs),
+                await anyrand.fulfillRandomness.populateTransaction(...fulfillRandomnessArgs),
             ),
         )
         const zeros = rawSignedTx.filter((v) => v === 0).byteLength

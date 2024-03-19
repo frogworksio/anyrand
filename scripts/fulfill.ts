@@ -1,8 +1,8 @@
 import { ethers } from 'hardhat'
-import { RNGesusReloaded__factory } from '../typechain-types'
+import { Anyrand__factory } from '../typechain-types'
 import { decodeG1 } from '../lib/drand'
 
-const RNGESUS_ADDRESS = '0x4e330f5b246cf5c8a063929d034f237f8d178e87'
+const ANYRAND_ADDRESS = '0x4e330f5b246cf5c8a063929d034f237f8d178e87'
 const REQUEST = {
     requestId: 0n,
     beaconPubKeyHash: '0xF83ADA85DE740DD123163AEF4DF20A378211F9C6F82268151F268A5750040CF4',
@@ -19,13 +19,10 @@ const REQUEST = {
 
 async function main() {
     const [deployer] = await ethers.getSigners()
-    const rngesus = await RNGesusReloaded__factory.connect(
-        RNGESUS_ADDRESS,
-        deployer,
-    ).waitForDeployment()
+    const anyrand = await Anyrand__factory.connect(ANYRAND_ADDRESS, deployer).waitForDeployment()
 
     const { requestId, beaconPubKeyHash, requester, round, callbackGasLimit, beacon } = REQUEST
-    const tx = await rngesus
+    const tx = await anyrand
         .fulfillRandomness(
             requestId,
             requester,

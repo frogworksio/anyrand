@@ -3,7 +3,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "rngesus_",
+        "name": "anyrand_",
         "type": "address"
       }
     ],
@@ -63,6 +63,19 @@
     ],
     "name": "RandomnessReceived",
     "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "anyrand",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "inputs": [
@@ -137,19 +150,6 @@
     "name": "renounceOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "rngesus",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {

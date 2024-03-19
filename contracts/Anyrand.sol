@@ -5,10 +5,11 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BLS} from "@kevincharm/bls-bn254/contracts/BLS.sol";
 import {Gas} from "./lib/Gas.sol";
 import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
-import {IRNGesusReloaded} from "./interfaces/IRNGesusReloaded.sol";
+import {IAnyrand} from "./interfaces/IAnyrand.sol";
 
-/// @title RNGesusReloaded
-contract RNGesusReloaded is IRNGesusReloaded, Ownable {
+/// @title Anyrand by Fairy
+/// @author kevincharm (k@fairy.dev)
+contract Anyrand is IAnyrand, Ownable {
     /// @notice Domain separation tag
     bytes public constant DST =
         bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SSWU_RO_NUL_");
@@ -35,7 +36,7 @@ contract RNGesusReloaded is IRNGesusReloaded, Ownable {
     uint256 public maxDeadlineDelta;
     /// @notice Self-explanatory
     uint256 public nextRequestId;
-    /// @notice Request hashes - see {RNGesusReloaded-hashRequest}
+    /// @notice Request hashes - see {Anyrand-hashRequest}
     mapping(uint256 requestId => bytes32) public requests;
     /// @notice Reentrance flag
     bool private reentranceLock;
