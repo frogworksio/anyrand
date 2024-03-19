@@ -174,6 +174,27 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "base",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "exponent",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "modulus",
+        "type": "uint256"
+      }
+    ],
+    "name": "ModExpFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "callbackGasLimit",
         "type": "uint256"
       }

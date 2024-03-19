@@ -434,10 +434,10 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
-"@kevincharm/bls-bn254@^1.2.0":
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/@kevincharm/bls-bn254/-/bls-bn254-1.2.0.tgz#ac984f601f20e5b6b6b41ad9a8eaed5f58416168"
-  integrity sha512-qI4PKgH2UXquG9hAlOHFjLEBFTMH7SbE1D98HDusfHHYd5s6PG3mE7+ew+NRXpGDiC/q52dclrorHrW3o1Y9zQ==
+"@kevincharm/bls-bn254@^2.0.0":
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/@kevincharm/bls-bn254/-/bls-bn254-2.0.0.tgz#658300485bad69357b94d91ca668c8ba627b5b33"
+  integrity sha512-Y6Jk8oE6Re4v3rDkb51mF3rHfDakxCTGptVr/LX2iwtbA7qu3DLNBNgdBU3heYFA8t22JiX3BgnMTbBgm3AZMA==
 
 "@metamask/eth-sig-util@^4.0.0":
   version "4.0.1"
