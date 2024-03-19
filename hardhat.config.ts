@@ -5,6 +5,7 @@ import 'hardhat-contract-sizer'
 import 'hardhat-storage-layout-changes'
 import 'hardhat-abi-exporter'
 import 'hardhat-gas-reporter'
+import '@nomicfoundation/hardhat-ignition-ethers'
 import * as dotenv from 'dotenv'
 
 dotenv.config()

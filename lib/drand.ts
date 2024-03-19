@@ -2,11 +2,11 @@ import { getBytes, hexlify } from 'ethers'
 
 export const DRAND_BN254_INFO = {
     public_key:
-        '132129f8c30a43d4c00d2d6b1f6cabd3184be62f829846301c805ba8eb8570d81c80c7ab94dbf2fb22ebee71ab2b6f79d27d445d3d6ddc2ef1d28df86955c0eb1aad8f4a986b9a4157543ef2145bbf773863dc5acbfec48a5ff8078d6efecf9e00c74538d9f890a2c177633c7f88a4cb27dc4407decc55a770b5ecbcda759010',
-    period: 3,
-    genesis_time: 1707657321,
-    hash: 'ee170bf15d789de7c3264dcea5b214e2745f20833a0b276bdc8db73522342e8e',
-    groupHash: '016c244897664763288dc1afde9d9bef453c99026fa6314110c12e1452e96002',
+        '11a5b52383dcdaf609c7d993e0eee909da873fafcc5b5727a757b70f390ba1321c698cd5ae4c6c1e0a8256853d80025e4e274e4a85466bc5966fa33c8887a7482d84ea13f327bbf97683f28a2c07048af9e0b109ac09b3adee4dbf76280cdb0c0aec4a98aae82e083c467a2cbb33ec23b49d01875fbf4b126395e4d7fec7a64a',
+    period: 1,
+    genesis_time: 1710884219,
+    hash: 'ce2b88ba52087c5f4c3fd22e92ba78d1389295ac975d2bb95614a11efc532fa0',
+    groupHash: '70f37215b462863cea451f14da30c050f01e30b989ffd7e223c777078127481d',
     schemeID: 'bls-bn254-unchained-on-g1',
     metadata: { beaconID: 'fairy-drand-bn254-dev' },
 }
