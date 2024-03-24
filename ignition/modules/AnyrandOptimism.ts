@@ -15,7 +15,7 @@ const AnyrandOptimismModule = buildModule('AnyrandOptimismModule', (m) => {
     const maxCallbackGasLimit = m.getParameter('maxCallbackGasLimit', MAX_CALLBACK_GAS_LIMIT)
     const maxDeadlineDelta = m.getParameter('maxDeadlineDelta', MAX_DEADLINE_DELTA)
 
-    const anyrand = m.contract('Anyrand', [
+    const anyrand = m.contract('AnyrandOptimism', [
         publicKey,
         genesisTime,
         period,
