@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Permissionless verifiable randomness on any EVM",
   "scripts": {
-    "deploy:base": "yarn hardhat ignition deploy ignition/modules/AnyrandOptimismConsumer.ts --network base --verify",
+    "deploy:base:fixedfee": "yarn hardhat ignition deploy ignition/modules/AnyrandFixedFee.ts --network base --verify",
     "test": "yarn hardhat --network hardhat test",
     "coverage": "yarn hardhat --network hardhat coverage"
   },
