@@ -54,6 +54,11 @@ const config: HardhatUserConfig = {
             url: process.env.BASE_URL as string,
             accounts: [process.env.MAINNET_PK as string],
         },
+        degen: {
+            chainId: 666666666,
+            url: process.env.DEGEN_URL as string,
+            accounts: [process.env.MAINNET_PK as string],
+        },
     },
     gasReporter: {
         enabled: true,
@@ -67,6 +72,7 @@ const config: HardhatUserConfig = {
             scrollSepolia: process.env.SCROLLSCAN_API_KEY as string,
             sepolia: process.env.ETHERSCAN_API_KEY as string,
             base: process.env.BASESCAN_API_KEY as string,
+            degen: 'abc', // blockscout
         },
         customChains: [
             {
@@ -83,6 +89,14 @@ const config: HardhatUserConfig = {
                 urls: {
                     apiURL: 'https://api-sepolia.scrollscan.com/api',
                     browserURL: 'https://sepolia.scrollscan.dev',
+                },
+            },
+            {
+                network: 'degen',
+                chainId: 666666666,
+                urls: {
+                    apiURL: 'https://explorer.degen.tips/api',
+                    browserURL: 'https://explorer.degen.tips',
                 },
             },
         ],
@@ -107,6 +121,10 @@ const config: HardhatUserConfig = {
         flat: true,
         only: ['Anyrand'],
         except: ['test/*'],
+    },
+    ignition: {
+        blockPollingInterval: 5000,
+        requiredConfirmations: 1,
     },
 }
 
