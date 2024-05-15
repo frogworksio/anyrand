@@ -59,6 +59,11 @@ const config: HardhatUserConfig = {
             url: process.env.DEGEN_URL as string,
             accounts: [process.env.MAINNET_PK as string],
         },
+        gnosis: {
+            chainId: 100,
+            url: process.env.XDAI_URL as string,
+            accounts: [process.env.MAINNET_PK as string],
+        },
     },
     gasReporter: {
         enabled: true,
