@@ -7,7 +7,7 @@ const REQUEST_PRICE = parseEther('0.001')
 const MAX_CALLBACK_GAS_LIMIT = 2_000_000
 const MAX_DEADLINE_DELTA = 1800 // 30 mins into the future
 
-const AnyrandOptimismModule = buildModule('AnyrandOptimismModule', (m) => {
+const AnyrandOptimismModule = buildModule('AnyrandOptimism', (m) => {
     const publicKey = m.getParameter('publicKey', decodeG2(DRAND_BN254_INFO.public_key))
     const genesisTime = m.getParameter('genesisTime', BigInt(DRAND_BN254_INFO.genesis_time))
     const period = m.getParameter('period', BigInt(DRAND_BN254_INFO.period))
@@ -15,7 +15,7 @@ const AnyrandOptimismModule = buildModule('AnyrandOptimismModule', (m) => {
     const maxCallbackGasLimit = m.getParameter('maxCallbackGasLimit', MAX_CALLBACK_GAS_LIMIT)
     const maxDeadlineDelta = m.getParameter('maxDeadlineDelta', MAX_DEADLINE_DELTA)
 
-    const anyrand = m.contract('Anyrand', [
+    const anyrand = m.contract('AnyrandOptimism', [
         publicKey,
         genesisTime,
         period,
@@ -29,4 +29,14 @@ const AnyrandOptimismModule = buildModule('AnyrandOptimismModule', (m) => {
     }
 })
 
-export default AnyrandOptimismModule
+const AnyrandOptimismConsumerModule = buildModule('AnyrandOptimismConsumer', (m) => {
+    const { anyrand } = m.useModule(AnyrandOptimismModule)
+
+    const anyrandConsumer = m.contract('AnyrandConsumer', [anyrand])
+
+    return {
+        anyrandConsumer,
+    }
+})
+
+export default AnyrandOptimismConsumerModule
