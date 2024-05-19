@@ -4,7 +4,9 @@ import {
     Anyrand,
     AnyrandConsumer,
     AnyrandConsumer__factory,
+    AnyrandOptimism__factory,
     Anyrand__factory,
+    MockGasPriceOracle__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 import {
@@ -31,6 +33,7 @@ describe('Anyrand', () => {
     let deployer: SignerWithAddress
     let bob: SignerWithAddress
     let anyrand: Anyrand
+    let anyrandArgs: Parameters<Anyrand__factory['deploy']>
     let consumer: AnyrandConsumer
     let beaconPubKey: G2
     let beaconSecretKey: Fr
@@ -40,14 +43,15 @@ describe('Anyrand', () => {
         ;[deployer, bob] = await ethers.getSigners()
         // drand beacon details
         ;({ pubKey: beaconPubKey, secretKey: beaconSecretKey } = await bls.createKeyPair())
-        anyrand = await new Anyrand__factory(deployer).deploy(
+        anyrandArgs = [
             bls.serialiseG2Point(beaconPubKey),
             beaconGenesisTimestamp,
             beaconPeriod,
             parseEther('0.001'),
             2_000_000,
             1800, // 30 mins
-        )
+        ]
+        anyrand = await new Anyrand__factory(deployer).deploy(...anyrandArgs)
 
         consumer = await new AnyrandConsumer__factory(deployer).deploy(await anyrand.getAddress())
     })
@@ -112,5 +116,39 @@ describe('Anyrand', () => {
         console.log(
             `Raw signed fulfillRandomness tx: ${zeros} zero bytes, ${nonZeros} non-zero bytes`,
         )
+    })
+
+    it('computes request price on OP chains', async () => {
+        // Setup mock GasPriceOracle predeploy
+        const mockGasPriceOracle = await new MockGasPriceOracle__factory(deployer).deploy()
+        const mockGasPriceOracleDeployedBytecode = await ethers.provider.getCode(
+            await mockGasPriceOracle.getAddress(),
+        )
+        expect(mockGasPriceOracleDeployedBytecode).to.not.eq('0x')
+        await ethers.provider.send('hardhat_setCode', [
+            '0x420000000000000000000000000000000000000F',
+            mockGasPriceOracleDeployedBytecode,
+        ])
+        const gasPriceOracle = MockGasPriceOracle__factory.connect(
+            '0x420000000000000000000000000000000000000F',
+            deployer,
+        )
+
+        // Deploy OP Anyrand
+        const anyrandOptimism = await new AnyrandOptimism__factory(deployer).deploy(...anyrandArgs)
+        // Bedrock
+        const bedrockRequestPrice = await anyrandOptimism.getRequestPrice(500_000)
+        console.log(`Bedrock request price: ${formatEther(bedrockRequestPrice)}`)
+        expect(bedrockRequestPrice).to.be.gt(0)
+        // Ecotone
+        await gasPriceOracle.setEcotone()
+        const ecotoneRequestPrice = await anyrandOptimism.getRequestPrice(500_000)
+        console.log(`Ecotone request price: ${formatEther(ecotoneRequestPrice)}`)
+        expect(ecotoneRequestPrice).to.be.gt(0)
+        // Fjord
+        await gasPriceOracle.setFjord()
+        const fjordRequestPrice = await anyrandOptimism.getRequestPrice(500_000)
+        console.log(`Fjord request price: ${formatEther(fjordRequestPrice)}`)
+        expect(fjordRequestPrice).to.be.gt(0)
     })
 })

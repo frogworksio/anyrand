@@ -6,6 +6,7 @@
     "deploy:base:fixedfee": "yarn hardhat ignition deploy ignition/modules/AnyrandFixedFee.ts --network base --verify",
     "deploy:degen:fixedfee": "yarn hardhat ignition deploy ignition/modules/AnyrandFixedFee.ts --network degen --parameters ignition/config/degen.json --verify",
     "deploy:gnosis:fixedfee": "yarn hardhat ignition deploy ignition/modules/AnyrandFixedFee.ts --network gnosis --parameters ignition/config/gnosis.json --verify",
+    "calc-optimism-gas": "yarn hardhat --network scrollSepolia run scripts/gas.ts",
     "test": "yarn hardhat --network hardhat test",
     "coverage": "yarn hardhat --network hardhat coverage"
   },
@@ -46,6 +47,7 @@
     "@kevincharm/bls-bn254": "^2.0.0",
     "@openzeppelin/contracts": "^5.0.0",
     "@openzeppelin/contracts-upgradeable": "^5.0.0",
-    "@scroll-tech/contracts": "^0.1.0"
+    "@scroll-tech/contracts": "^0.1.0",
+    "solady": "^0.0.201"
   }
 }
