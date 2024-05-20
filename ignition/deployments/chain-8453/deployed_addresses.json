@@ -1,6 +1,4 @@
 {
-  "AnyrandOptimismModule#Anyrand": "0x0632a6DF853E00E04b8f2F2F825bfC9a5eE9137A",
-  "AnyrandOptimismConsumer#AnyrandConsumer": "0x8D1501c9A2D7995a8c72CCdaB5D7100780107bc5",
-  "AnyrandFixedFee#AnyrandFixedFee": "0xE3A8eca966457Bfd7e0049543E07e8b691b3930e",
-  "AnyrandFixedFeeConsumer#AnyrandConsumer": "0x2cc7f85730052dA7389e276115975a5dB1e7A668"
+  "AnyrandOptimism#AnyrandOptimism": "0x26881E8C452928A889654e4a8BaFBf205dD87812",
+  "AnyrandOptimismConsumer#AnyrandConsumer": "0xDf565D550e50eFDc1881B1F1D4c64f394fC47e5a"
 }

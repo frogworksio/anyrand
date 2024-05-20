@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8;
 
+/// Adapted from: https://github.com/ethereum-optimism/optimism/blob/develop/packages/contracts-bedrock/src/L2/GasPriceOracle.sol
+
 /// @custom:proxied
 /// @custom:predeploy 0x420000000000000000000000000000000000000F
 /// @title GasPriceOracle
@@ -21,6 +23,9 @@ interface IGasPriceOracle {
 
     /// @notice Indicates whether the network has gone through the Ecotone upgrade.
     function isEcotone() external view returns (bool);
+
+    /// @notice Indicates whether the network has gone through the Fjord upgrade.
+    function isFjord() external view returns (bool);
 
     /// @notice Computes the L1 portion of the fee based on the size of the rlp encoded input
     ///         transaction, the current L1 base fee, and the various dynamic parameters.

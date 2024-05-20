@@ -7,7 +7,7 @@ const REQUEST_PRICE = parseEther('0.001')
 const MAX_CALLBACK_GAS_LIMIT = 2_000_000
 const MAX_DEADLINE_DELTA = 1800 // 30 mins into the future
 
-const AnyrandFixedFee = buildModule('AnyrandFixedFee', (m) => {
+const AnyrandFixedFeeModule = buildModule('AnyrandFixedFee', (m) => {
     const publicKey = m.getParameter('publicKey', decodeG2(DRAND_BN254_INFO.public_key))
     const genesisTime = m.getParameter('genesisTime', BigInt(DRAND_BN254_INFO.genesis_time))
     const period = m.getParameter('period', BigInt(DRAND_BN254_INFO.period))
@@ -29,8 +29,8 @@ const AnyrandFixedFee = buildModule('AnyrandFixedFee', (m) => {
     }
 })
 
-const AnyrandFixedFeeConsumer = buildModule('AnyrandFixedFeeConsumer', (m) => {
-    const { anyrand } = m.useModule(AnyrandFixedFee)
+const AnyrandFixedFeeConsumerModule = buildModule('AnyrandFixedFeeConsumer', (m) => {
+    const { anyrand } = m.useModule(AnyrandFixedFeeModule)
 
     const anyrandConsumer = m.contract('AnyrandConsumer', [anyrand])
 
@@ -39,4 +39,4 @@ const AnyrandFixedFeeConsumer = buildModule('AnyrandFixedFeeConsumer', (m) => {
     }
 })
 
-export default AnyrandFixedFeeConsumer
+export default AnyrandFixedFeeConsumerModule
