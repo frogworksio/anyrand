@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Permissionless verifiable randomness on any EVM",
   "scripts": {
+    "deploy:scroll": "yarn hardhat ignition deploy ignition/modules/AnyrandScroll.ts --network scroll --verify",
+    "deploy:scrollSepolia": "yarn hardhat ignition deploy ignition/modules/AnyrandScroll.ts --network scrollSepolia --verify",
     "deploy:base": "yarn hardhat ignition deploy ignition/modules/AnyrandOptimism.ts --network base --verify",
     "deploy:base:fixedfee": "yarn hardhat ignition deploy ignition/modules/AnyrandFixedFee.ts --network base --verify",
     "deploy:degen:fixedfee": "yarn hardhat ignition deploy ignition/modules/AnyrandFixedFee.ts --network degen --parameters ignition/config/degen.json --verify",
@@ -17,12 +19,12 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.5",
-    "@nomicfoundation/hardhat-ignition": "^0.15.0",
-    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.0",
+    "@nomicfoundation/hardhat-ignition": "^0.15.4",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.4",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
     "@nomicfoundation/hardhat-toolbox": "^3.0.0",
-    "@nomicfoundation/hardhat-verify": "^2.0.5",
-    "@nomicfoundation/ignition-core": "^0.15.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.7",
+    "@nomicfoundation/ignition-core": "^0.15.4",
     "@typechain/ethers-v6": "^0.5.0",
     "@typechain/hardhat": "^9.0.0",
     "@types/chai": "^4.3.6",
@@ -50,5 +52,6 @@
     "@openzeppelin/contracts-upgradeable": "^5.0.0",
     "@scroll-tech/contracts": "^0.1.0",
     "solady": "^0.0.201"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
