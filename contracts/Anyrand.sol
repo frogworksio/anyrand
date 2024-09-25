@@ -223,7 +223,7 @@ contract Anyrand is IAnyrand, Ownable {
     ) external payable override returns (uint256) {
         _assertNoReentrance();
         uint256 reqPrice = getRequestPrice(callbackGasLimit);
-        if (msg.value < reqPrice) {
+        if (msg.value != reqPrice) {
             revert IncorrectPayment(msg.value, reqPrice);
         }
         if (callbackGasLimit > maxCallbackGasLimit) {
