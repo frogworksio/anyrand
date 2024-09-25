@@ -21,34 +21,32 @@ import {
     toUtf8Bytes,
 } from 'ethers'
 import { expect } from 'chai'
-import { BlsBn254 } from '@kevincharm/bls-bn254'
-import type { G1, G2, Fr, Fp, Fp2 } from 'mcl-wasm'
+import { bn254 } from '@kevincharm/noble-bn254-drand'
 
-const DOMAIN = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_'
+type G1 = typeof bn254.G1.ProjectivePoint.BASE
+type G2 = typeof bn254.G2.ProjectivePoint.BASE
+const DST = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_'
 
 describe('Anyrand', () => {
-    let bls: BlsBn254
-    before(async () => {
-        bls = await BlsBn254.create()
-    })
-
     let deployer: SignerWithAddress
     let bob: SignerWithAddress
     let anyrand: Anyrand
     let anyrandArgs: Parameters<Anyrand__factory['deploy']>
     let consumer: AnyrandConsumer
     let beaconPubKey: G2
-    let beaconSecretKey: Fr
+    let beaconSecretKey: Uint8Array
     let beaconPeriod = 1n
     let beaconGenesisTimestamp = 1702549672n
     let gasStation: GasStationEthereum
     beforeEach(async () => {
         ;[deployer, bob] = await ethers.getSigners()
         // drand beacon details
-        ;({ pubKey: beaconPubKey, secretKey: beaconSecretKey } = await bls.createKeyPair())
+        beaconSecretKey = bn254.utils.randomPrivateKey()
+        beaconPubKey = bn254.G2.ProjectivePoint.fromPrivateKey(beaconSecretKey)
+
         gasStation = await new GasStationEthereum__factory(deployer).deploy()
         anyrandArgs = [
-            bls.serialiseG2Point(beaconPubKey),
+            [beaconPubKey.x.c0, beaconPubKey.x.c1, beaconPubKey.y.c0, beaconPubKey.y.c1],
             beaconGenesisTimestamp,
             beaconPeriod,
             parseEther('0.001'),
@@ -87,13 +85,12 @@ describe('Anyrand', () => {
 
         // Simulate drand beacon response
         const roundBytes = getBytes('0x' + round.toString(16).padStart(16, '0'))
-        const M = await bls.hashToPoint(
-            toUtf8Bytes(DOMAIN),
-            getBytes(keccak256(roundBytes) as `0x${string}`),
-        )
+        const M = bn254.G1.hashToCurve(getBytes(keccak256(roundBytes) as `0x${string}`), {
+            DST,
+        }) as G1
         const roundBeacon = {
             round,
-            signature: bls.sign(M, beaconSecretKey).signature,
+            signature: bn254.signShortSignature(M, beaconSecretKey).toAffine(),
         }
 
         // Wait 10s & fulfill
@@ -103,7 +100,7 @@ describe('Anyrand', () => {
             requester,
             round,
             callbackGasLimit,
-            bls.serialiseG1Point(roundBeacon.signature),
+            [roundBeacon.signature.x, roundBeacon.signature.y],
         ]
         const fulfillTx = await anyrand.fulfillRandomness(...fulfillRandomnessArgs)
         expect(fulfillTx).to.emit(anyrand, 'RandomnessFulfilled')
