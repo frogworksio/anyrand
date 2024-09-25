@@ -5,14 +5,14 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {BLS} from "@kevincharm/bls-bn254/contracts/BLS.sol";
 import {Gas} from "./lib/Gas.sol";
 import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
-import {IAnyrand} from "./interfaces/IAnyrand.sol";
+import {AnyrandStorage} from "./AnyrandStorage.sol";
 import {IGasStation} from "./interfaces/IGasStation.sol";
 
 /// @title Anyrand
 /// @author Kevin Charm (kevin@frogworks.io)
 /// @notice Coordinator for requesting and receiving verified randomness from
 ///     a drand (https://drand.love) beacon.
-contract Anyrand is IAnyrand, Ownable {
+contract Anyrand is AnyrandStorage, Ownable {
     /// @notice Domain separation tag
     bytes public constant DST =
         bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_");
@@ -29,22 +29,6 @@ contract Anyrand is IAnyrand, Ownable {
     uint256 public immutable period;
     /// @notice Genesis timestamp
     uint256 public immutable genesisTimestamp;
-
-    /// @notice The base price of entropy
-    uint256 public baseRequestPrice;
-    /// @notice Maximum callback gas limit
-    uint256 public maxCallbackGasLimit;
-    /// @notice Maximum number of seconds in the future from which randomness
-    ///     can be requested
-    uint256 public maxDeadlineDelta;
-    /// @notice Self-explanatory
-    uint256 public nextRequestId;
-    /// @notice Request hashes - see {Anyrand-hashRequest}
-    mapping(uint256 requestId => bytes32) public requests;
-    /// @notice Reentrance flag
-    bool private reentranceLock;
-    /// @notice Gas station
-    address public gasStation;
 
     constructor(
         uint256[4] memory publicKey_,
@@ -69,16 +53,18 @@ contract Anyrand is IAnyrand, Ownable {
         genesisTimestamp = genesisTimestamp_;
         period = period_;
 
-        baseRequestPrice = initialRequestPrice;
+        MainStorage storage $ = _getMainStorage();
+
+        $.baseRequestPrice = initialRequestPrice;
         emit RequestPriceUpdated(initialRequestPrice);
 
-        maxCallbackGasLimit = maxCallbackGasLimit_;
+        $.maxCallbackGasLimit = maxCallbackGasLimit_;
         emit MaxCallbackGasLimitUpdated(maxCallbackGasLimit_);
 
-        maxDeadlineDelta = maxDeadlineDelta_;
+        $.maxDeadlineDelta = maxDeadlineDelta_;
         emit MaxDeadlineDeltaUpdated(maxDeadlineDelta_);
 
-        gasStation = gasStation_;
+        $.gasStation = gasStation_;
         emit GasStationUpdated(gasStation_);
     }
 
@@ -89,7 +75,8 @@ contract Anyrand is IAnyrand, Ownable {
 
     /// @notice Assert that the reentrance lock is not set
     function _assertNoReentrance() internal view {
-        if (reentranceLock) {
+        MainStorage storage $ = _getMainStorage();
+        if ($.reentranceLock) {
             revert Reentrant();
         }
     }
@@ -136,47 +123,16 @@ contract Anyrand is IAnyrand, Ownable {
         emit ETHWithdrawn(amount);
     }
 
-    /// @notice Update request price
-    /// @param newPrice The new price
-    function setPrice(uint256 newPrice) external onlyOwner {
-        baseRequestPrice = newPrice;
-        emit RequestPriceUpdated(newPrice);
-    }
-
     /// @notice Compute the total request price.
     /// @param callbackGasLimit The callback gas limit that will be used for
     ///     the randomness request
     function getRequestPrice(
         uint256 callbackGasLimit
     ) public view virtual returns (uint256) {
+        MainStorage storage $ = _getMainStorage();
         return
-            baseRequestPrice +
-            IGasStation(gasStation).getTxCost(callbackGasLimit);
-    }
-
-    /// @notice Update max callback gas limit
-    /// @param newMaxCallbackGasLimit The new max callback gas limit
-    function setMaxCallbackGasLimit(
-        uint256 newMaxCallbackGasLimit
-    ) external onlyOwner {
-        maxCallbackGasLimit = newMaxCallbackGasLimit;
-        emit MaxCallbackGasLimitUpdated(newMaxCallbackGasLimit);
-    }
-
-    /// @notice Update max deadline delta
-    /// @param newMaxDeadlineDelta The new max deadline delta
-    function setMaxDeadlineDelta(
-        uint256 newMaxDeadlineDelta
-    ) external onlyOwner {
-        maxDeadlineDelta = newMaxDeadlineDelta;
-        emit MaxDeadlineDeltaUpdated(newMaxDeadlineDelta);
-    }
-
-    /// @notice Set the gas station
-    /// @param newGasStation The new gas station
-    function setGasStation(address newGasStation) external onlyOwner {
-        gasStation = newGasStation;
-        emit GasStationUpdated(newGasStation);
+            $.baseRequestPrice +
+            IGasStation($.gasStation).getTxCost(callbackGasLimit);
     }
 
     /// @notice Request randomness
@@ -190,19 +146,19 @@ contract Anyrand is IAnyrand, Ownable {
         uint256 callbackGasLimit
     ) external payable override returns (uint256) {
         _assertNoReentrance();
+        MainStorage storage $ = _getMainStorage();
         uint256 reqPrice = getRequestPrice(callbackGasLimit);
         if (msg.value != reqPrice) {
             revert IncorrectPayment(msg.value, reqPrice);
         }
-        if (callbackGasLimit > maxCallbackGasLimit) {
+        if (callbackGasLimit > $.maxCallbackGasLimit) {
             revert OverGasLimit(callbackGasLimit);
         }
-        if (deadline > block.timestamp + maxDeadlineDelta) {
+        if (deadline > block.timestamp + $.maxDeadlineDelta) {
             revert InvalidDeadline(deadline);
         }
 
-        uint256 requestId = nextRequestId;
-        nextRequestId++;
+        uint256 requestId = $.nextRequestId++;
 
         // Calculate nearest round from deadline (rounding to the future)
         if (
@@ -214,7 +170,7 @@ contract Anyrand is IAnyrand, Ownable {
         uint256 delta = deadline - genesisTimestamp;
         uint64 round = uint64((delta / period) + (delta % period));
 
-        requests[requestId] = hashRequest(
+        $.requests[requestId] = hashRequest(
             requestId,
             msg.sender,
             round,
@@ -281,19 +237,19 @@ contract Anyrand is IAnyrand, Ownable {
         uint256[2] calldata signature
     ) external {
         _assertNoReentrance();
-
+        MainStorage storage $ = _getMainStorage();
         bytes32 reqHash = hashRequest(
             requestId,
             requester,
             round,
             callbackGasLimit
         );
-        if (requests[requestId] != reqHash) {
+        if ($.requests[requestId] != reqHash) {
             revert InvalidRequestHash(reqHash);
         }
         // Nullify the request hash optimistically
         // Note that we restore this hash if the callback fails.
-        requests[requestId] = bytes32(0);
+        $.requests[requestId] = bytes32(0);
 
         // Beacon verification
         _verifyBeaconRound(round, signature);
@@ -320,7 +276,7 @@ contract Anyrand is IAnyrand, Ownable {
         );
         if (!didCallbackSucceed) {
             // Allow the fulfiller to retry this request
-            requests[requestId] = reqHash;
+            $.requests[requestId] = reqHash;
             bytes32 retdata;
             assembly {
                 // Copy a maximum of 32B from returndata, to ease debugging
@@ -340,7 +296,8 @@ contract Anyrand is IAnyrand, Ownable {
         uint256 requestId,
         uint256[] memory randomWords
     ) private returns (bool success) {
-        reentranceLock = true;
+        MainStorage storage $ = _getMainStorage();
+        $.reentranceLock = true;
         success = Gas.callWithExactGas(
             callbackGasLimit,
             requester,
@@ -349,6 +306,46 @@ contract Anyrand is IAnyrand, Ownable {
                 abi.encode(requestId, randomWords)
             )
         );
-        reentranceLock = false;
+        $.reentranceLock = false;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    /// Privileged setters ////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
+
+    /// @notice Update request price
+    /// @param newPrice The new price
+    function setBaseRequestPrice(uint256 newPrice) external onlyOwner {
+        MainStorage storage $ = _getMainStorage();
+        $.baseRequestPrice = newPrice;
+        emit RequestPriceUpdated(newPrice);
+    }
+
+    /// @notice Update max callback gas limit
+    /// @param newMaxCallbackGasLimit The new max callback gas limit
+    function setMaxCallbackGasLimit(
+        uint256 newMaxCallbackGasLimit
+    ) external onlyOwner {
+        MainStorage storage $ = _getMainStorage();
+        $.maxCallbackGasLimit = newMaxCallbackGasLimit;
+        emit MaxCallbackGasLimitUpdated(newMaxCallbackGasLimit);
+    }
+
+    /// @notice Update max deadline delta
+    /// @param newMaxDeadlineDelta The new max deadline delta
+    function setMaxDeadlineDelta(
+        uint256 newMaxDeadlineDelta
+    ) external onlyOwner {
+        MainStorage storage $ = _getMainStorage();
+        $.maxDeadlineDelta = newMaxDeadlineDelta;
+        emit MaxDeadlineDeltaUpdated(newMaxDeadlineDelta);
+    }
+
+    /// @notice Set the gas station
+    /// @param newGasStation The new gas station
+    function setGasStation(address newGasStation) external onlyOwner {
+        MainStorage storage $ = _getMainStorage();
+        $.gasStation = newGasStation;
+        emit GasStationUpdated(newGasStation);
     }
 }
