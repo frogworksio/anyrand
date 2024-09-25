@@ -51,7 +51,12 @@ contract Anyrand is IAnyrand, Ownable {
         uint256 callbackGasLimit,
         uint256 feePaid
     );
-    event RandomnessFulfilled(uint256 indexed requestId, uint256[] randomWords);
+    event RandomnessFulfilled(
+        uint256 indexed requestId,
+        uint256[] randomWords,
+        bool callbackSuccess
+    );
+    event RandomnessCallbackFailed(uint256 indexed requestId, bytes32 retdata);
     event RequestPriceUpdated(uint256 newPrice);
     event ETHWithdrawn(uint256 amount);
     event MaxCallbackGasLimitUpdated(uint256 newMaxCallbackGasLimit);
@@ -264,6 +269,35 @@ contract Anyrand is IAnyrand, Ownable {
         return requestId;
     }
 
+    /// @notice Verify the signature produced by a drand beacon round against
+    ///     the known public key. Reverts if the signature is invalid.
+    /// @param round The beacon round to verify
+    /// @param signature The beacon signature
+    function _verifyBeaconRound(
+        uint256 round,
+        uint256[2] calldata signature
+    ) private view {
+        // Encode round for hash-to-point
+        bytes memory hashedRoundBytes = new bytes(32);
+        assembly {
+            mstore(0x00, round)
+            let hashedRound := keccak256(0x18, 0x08) // hash the last 8 bytes (uint64) of `round`
+            mstore(add(0x20, hashedRoundBytes), hashedRound)
+        }
+
+        uint256[4] memory pubKey = getPubKey();
+        uint256[2] memory message = BLS.hashToPoint(DST, hashedRoundBytes);
+        bool isValidSignature = BLS.isValidSignature(signature);
+        (bool pairingSuccess, bool callSuccess) = BLS.verifySingle(
+            signature,
+            pubKey,
+            message
+        );
+        if (!isValidSignature || !pairingSuccess || !callSuccess) {
+            revert InvalidSignature(pubKey, message, signature);
+        }
+    }
+
     /// @notice Fulfill a randomness request (for beacon keepers)
     /// @param requestId Which request id to fulfill
     /// @param requester Address of account that initiated the request.
@@ -289,52 +323,57 @@ contract Anyrand is IAnyrand, Ownable {
         if (requests[requestId] != reqHash) {
             revert InvalidRequestHash(reqHash);
         }
+        // Nullify the request hash optimistically
+        // Note that we restore this hash if the callback fails.
         requests[requestId] = bytes32(0);
 
-        // Encode round for hash-to-point
-        bytes memory hashedRoundBytes = new bytes(32);
-        assembly {
-            mstore(0x00, round)
-            let hashedRound := keccak256(0x18, 0x08) // hash the last 8 bytes (uint64) of `round`
-            mstore(add(0x20, hashedRoundBytes), hashedRound)
-        }
+        // Beacon verification
+        _verifyBeaconRound(round, signature);
 
-        uint256[4] memory pubKey = getPubKey();
-        uint256[2] memory message = BLS.hashToPoint(DST, hashedRoundBytes);
-        bool isValidSignature = BLS.isValidSignature(signature);
-        (bool pairingSuccess, bool callSuccess) = BLS.verifySingle(
-            signature,
-            pubKey,
-            message
-        );
-        if (!isValidSignature || !pairingSuccess || !callSuccess) {
-            revert InvalidSignature(pubKey, message, signature);
-        }
-
+        // Derive randomness from the signature
         uint256[] memory randomWords = new uint256[](1);
         randomWords[0] = uint256(
             keccak256(
                 abi.encode(
-                    keccak256(abi.encode(signature[0], signature[1])),
-                    requestId,
-                    requester
+                    keccak256(
+                        abi.encode(signature[0], signature[1])
+                    ) /** entropy */,
+                    requestId /** salt */,
+                    requester /** salt */
                 )
             )
         );
 
-        callWithExactGas(callbackGasLimit, requester, requestId, randomWords);
+        bool didCallbackSucceed = callWithExactGas(
+            callbackGasLimit,
+            requester,
+            requestId,
+            randomWords
+        );
+        if (!didCallbackSucceed) {
+            // Allow the fulfiller to retry this request
+            requests[requestId] = reqHash;
+            bytes32 retdata;
+            assembly {
+                // Copy a maximum of 32B from returndata, to ease debugging
+                returndatacopy(0, 0, 32)
+                retdata := mload(0)
+            }
+            emit RandomnessCallbackFailed(requestId, retdata);
+        }
 
-        emit RandomnessFulfilled(requestId, randomWords);
+        emit RandomnessFulfilled(requestId, randomWords, didCallbackSucceed);
     }
 
+    /// @dev Non-reentrant callWithExactGas
     function callWithExactGas(
         uint256 callbackGasLimit,
         address requester,
         uint256 requestId,
         uint256[] memory randomWords
-    ) private {
+    ) private returns (bool success) {
         reentranceLock = true;
-        Gas.callWithExactGas(
+        success = Gas.callWithExactGas(
             callbackGasLimit,
             requester,
             abi.encodePacked(
