@@ -24,7 +24,7 @@ import { expect } from 'chai'
 import { BlsBn254 } from '@kevincharm/bls-bn254'
 import type { G1, G2, Fr, Fp, Fp2 } from 'mcl-wasm'
 
-const DOMAIN = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SSWU_RO_NUL_'
+const DOMAIN = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_'
 
 describe('Anyrand', () => {
     let bls: BlsBn254

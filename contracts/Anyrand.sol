@@ -13,7 +13,7 @@ import {IGasStation} from "./interfaces/IGasStation.sol";
 contract Anyrand is IAnyrand, Ownable {
     /// @notice Domain separation tag
     bytes public constant DST =
-        bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SSWU_RO_NUL_");
+        bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_");
 
     /// @notice Group PK Re(x) in G2
     uint256 public immutable publicKey0;
