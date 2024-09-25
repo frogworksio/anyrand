@@ -14,14 +14,8 @@
     "test": "yarn hardhat --network hardhat test",
     "coverage": "yarn hardhat --network hardhat coverage"
   },
-  "keywords": [
-    "solidity",
-    "vrf",
-    "drand",
-    "bls",
-    "bn254"
-  ],
-  "author": "Kevin Charm <k@fairy.dev>",
+  "keywords": ["solidity", "vrf", "drand", "bls", "bn254"],
+  "author": "Kevin Charm <kevin@frogworks.io>",
   "license": "UNLICENSED",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",

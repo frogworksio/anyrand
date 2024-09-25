@@ -8,8 +8,10 @@ import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
 import {IAnyrand} from "./interfaces/IAnyrand.sol";
 import {IGasStation} from "./interfaces/IGasStation.sol";
 
-/// @title Anyrand by Fairy
-/// @author kevincharm (k@fairy.dev)
+/// @title Anyrand
+/// @author Kevin Charm (kevin@frogworks.io)
+/// @notice Coordinator for requesting and receiving verified randomness from
+///     a drand (https://drand.love) beacon.
 contract Anyrand is IAnyrand, Ownable {
     /// @notice Domain separation tag
     bytes public constant DST =
