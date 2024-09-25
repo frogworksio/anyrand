@@ -30,6 +30,11 @@
         "internalType": "uint256",
         "name": "maxDeadlineDelta_",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "gasStation_",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -262,6 +267,19 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newGasStation",
+        "type": "address"
+      }
+    ],
+    "name": "GasStationUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": false,
         "internalType": "uint256",
         "name": "newMaxCallbackGasLimit",
@@ -423,6 +441,19 @@
     "name": "fulfillRandomness",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "gasStation",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -640,6 +671,19 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "newGasStation",
+        "type": "address"
+      }
+    ],
+    "name": "setGasStation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "newMaxCallbackGasLimit",
         "type": "uint256"
@@ -687,6 +731,19 @@
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "typeAndVersion",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "pure",
     "type": "function"
   },
   {

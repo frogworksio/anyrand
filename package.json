@@ -10,6 +10,7 @@
     "deploy:degen:fixedfee": "yarn hardhat ignition deploy ignition/modules/AnyrandFixedFee.ts --network degen --parameters ignition/config/degen.json --verify",
     "deploy:gnosis:fixedfee": "yarn hardhat ignition deploy ignition/modules/AnyrandFixedFee.ts --network gnosis --parameters ignition/config/gnosis.json --verify",
     "calc-optimism-gas": "yarn hardhat --network scrollSepolia run scripts/gas.ts",
+    "build": "yarn hardhat compile",
     "test": "yarn hardhat --network hardhat test",
     "coverage": "yarn hardhat --network hardhat coverage"
   },

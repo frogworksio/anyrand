@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8;
 
-interface IAnyrand {
+import {ITypeAndVersion} from "./ITypeAndVersion.sol";
+
+interface IAnyrand is ITypeAndVersion {
     /// @notice Compute the total request price
     /// @param callbackGasLimit The callback gas limit that will be used for
     ///     the randomness request

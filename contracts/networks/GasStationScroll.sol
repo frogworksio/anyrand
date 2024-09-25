@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.23;
 
-import {Anyrand} from "../Anyrand.sol";
+import {IGasStation} from "../interfaces/IGasStation.sol";
 import {IL1GasPriceOracle} from "@scroll-tech/contracts/L2/predeploys/IL1GasPriceOracle.sol";
 
-/// @title Anyrand
-contract AnyrandScroll is Anyrand {
+/// @title GasStationScroll
+contract GasStationScroll is IGasStation {
     /// @notice Gas cost of zero byte calldata on L1
     uint256 public constant TX_DATA_ZERO_GAS = 4;
     /// @notice Gas cost of non-zero byte calldata on L1
@@ -25,27 +25,14 @@ contract AnyrandScroll is Anyrand {
     address public constant L1_GAS_PRICE_ORACLE =
         0x5300000000000000000000000000000000000002;
 
-    constructor(
-        uint256[4] memory publicKey_,
-        uint256 genesisTimestamp_,
-        uint256 period_,
-        uint256 initialRequestPrice,
-        uint256 maxCallbackGasLimit_,
-        uint256 maxDeadlineDelta_
-    )
-        Anyrand(
-            publicKey_,
-            genesisTimestamp_,
-            period_,
-            initialRequestPrice,
-            maxCallbackGasLimit_,
-            maxDeadlineDelta_
-        )
-    {}
+    /// @notice See {ITypeAndVersion-typeAndVersion}
+    function typeAndVersion() external pure returns (string memory) {
+        return "GasStationScroll 1.0.0";
+    }
 
     /// @notice Compute the total request price
-    function getRequestPrice(
-        uint256 callbackGasLimit
+    function getTxCost(
+        uint256 gasLimit
     ) public view virtual override returns (uint256) {
         // Compute L1 calldata fee estimate
         // See: https://docs.scroll.io/en/developers/transaction-fees-on-scroll/
@@ -59,10 +46,10 @@ contract AnyrandScroll is Anyrand {
         uint256 l1GasFee = ((l1Gas + overhead) * l1BaseFee * scalar) /
             PRECISION;
         // Compute L2 execution fee estimate
-        uint256 l2GasFee = (200_000 + callbackGasLimit) * tx.gasprice;
+        uint256 l2GasFee = (200_000 + gasLimit) * tx.gasprice;
         // Sprinkle in some fudge in case of volatility
         uint256 totalGasFee = ((l2GasFee + l1GasFee) * FUDGE_FACTOR_BPS) /
             10000;
-        return baseRequestPrice + totalGasFee;
+        return totalGasFee;
     }
 }

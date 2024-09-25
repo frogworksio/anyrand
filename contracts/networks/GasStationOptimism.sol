@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.23;
 
-import {Anyrand} from "../Anyrand.sol";
+import {IGasStation} from "../interfaces/IGasStation.sol";
 import {IGasPriceOracle} from "../interfaces/optimism/IGasPriceOracle.sol";
 
-/// @title Anyrand for Optimism
+/// @title GasStationOptimism
 /// @notice Supports: Bedrock, Ecotone, Fjord
-contract AnyrandOptimism is Anyrand {
+contract GasStationOptimism is IGasStation {
     /// @notice Gas cost of zero byte calldata on L1
     uint256 private constant TX_DATA_ZERO_GAS = 4;
     /// @notice Gas cost of non-zero byte calldata on L1
@@ -45,27 +45,14 @@ contract AnyrandOptimism is Anyrand {
     address public constant L1_GAS_PRICE_ORACLE =
         0x420000000000000000000000000000000000000F;
 
-    constructor(
-        uint256[4] memory publicKey_,
-        uint256 genesisTimestamp_,
-        uint256 period_,
-        uint256 initialRequestPrice,
-        uint256 maxCallbackGasLimit_,
-        uint256 maxDeadlineDelta_
-    )
-        Anyrand(
-            publicKey_,
-            genesisTimestamp_,
-            period_,
-            initialRequestPrice,
-            maxCallbackGasLimit_,
-            maxDeadlineDelta_
-        )
-    {}
+    /// @notice See {ITypeAndVersion-typeAndVersion}
+    function typeAndVersion() external pure override returns (string memory) {
+        return "GasStationOptimism 1.0.0";
+    }
 
     /// @notice Compute the total request price
-    function getRequestPrice(
-        uint256 callbackGasLimit
+    function getTxCost(
+        uint256 gasLimit
     ) public view virtual override returns (uint256) {
         uint256 l1GasFee;
         if (IGasPriceOracle(L1_GAS_PRICE_ORACLE).isEcotone()) {
@@ -78,11 +65,11 @@ contract AnyrandOptimism is Anyrand {
         }
 
         // Compute L2 execution fee estimate
-        uint256 l2GasFee = (200_000 + callbackGasLimit) * tx.gasprice;
+        uint256 l2GasFee = (200_000 + gasLimit) * tx.gasprice;
         // Sprinkle in some fudge in case of volatility
         uint256 totalGasFee = ((l2GasFee + l1GasFee) * FUDGE_FACTOR_BPS) /
             10000;
-        return baseRequestPrice + totalGasFee;
+        return totalGasFee;
     }
 
     /// @notice Computation of the L1 portion of the fee for Bedrock.

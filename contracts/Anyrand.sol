@@ -6,6 +6,7 @@ import {BLS} from "@kevincharm/bls-bn254/contracts/BLS.sol";
 import {Gas} from "./lib/Gas.sol";
 import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
 import {IAnyrand} from "./interfaces/IAnyrand.sol";
+import {IGasStation} from "./interfaces/IGasStation.sol";
 
 /// @title Anyrand by Fairy
 /// @author kevincharm (k@fairy.dev)
@@ -40,6 +41,8 @@ contract Anyrand is IAnyrand, Ownable {
     mapping(uint256 requestId => bytes32) public requests;
     /// @notice Reentrance flag
     bool private reentranceLock;
+    /// @notice Gas station
+    address public gasStation;
 
     event RandomnessRequested(
         uint256 indexed requestId,
@@ -52,6 +55,7 @@ contract Anyrand is IAnyrand, Ownable {
     event ETHWithdrawn(uint256 amount);
     event MaxCallbackGasLimitUpdated(uint256 newMaxCallbackGasLimit);
     event MaxDeadlineDeltaUpdated(uint256 maxDeadlineDelta);
+    event GasStationUpdated(address indexed newGasStation);
 
     error TransferFailed(address to, uint256 value);
     error IncorrectPayment(uint256 got, uint256 want);
@@ -74,7 +78,8 @@ contract Anyrand is IAnyrand, Ownable {
         uint256 period_,
         uint256 initialRequestPrice,
         uint256 maxCallbackGasLimit_,
-        uint256 maxDeadlineDelta_
+        uint256 maxDeadlineDelta_,
+        address gasStation_
     ) Ownable(msg.sender) {
         if (!BLS.isValidPublicKey(publicKey_)) {
             revert InvalidPublicKey(publicKey_);
@@ -98,6 +103,14 @@ contract Anyrand is IAnyrand, Ownable {
 
         maxDeadlineDelta = maxDeadlineDelta_;
         emit MaxDeadlineDeltaUpdated(maxDeadlineDelta_);
+
+        gasStation = gasStation_;
+        emit GasStationUpdated(gasStation_);
+    }
+
+    /// @notice See {ITypeAndVersion-typeAndVersion}
+    function typeAndVersion() external pure returns (string memory) {
+        return "Anyrand 1.0.0";
     }
 
     /// @notice Assert that the reentrance lock is not set
@@ -161,13 +174,15 @@ contract Anyrand is IAnyrand, Ownable {
         emit RequestPriceUpdated(newPrice);
     }
 
-    /// @notice Compute the total request price
+    /// @notice Compute the total request price.
     /// @param callbackGasLimit The callback gas limit that will be used for
     ///     the randomness request
     function getRequestPrice(
         uint256 callbackGasLimit
     ) public view virtual returns (uint256) {
-        return baseRequestPrice + (200_000 + callbackGasLimit) * tx.gasprice;
+        return
+            baseRequestPrice +
+            IGasStation(gasStation).getTxCost(callbackGasLimit);
     }
 
     /// @notice Update max callback gas limit
@@ -186,6 +201,13 @@ contract Anyrand is IAnyrand, Ownable {
     ) external onlyOwner {
         maxDeadlineDelta = newMaxDeadlineDelta;
         emit MaxDeadlineDeltaUpdated(newMaxDeadlineDelta);
+    }
+
+    /// @notice Set the gas station
+    /// @param newGasStation The new gas station
+    function setGasStation(address newGasStation) external onlyOwner {
+        gasStation = newGasStation;
+        emit GasStationUpdated(newGasStation);
     }
 
     /// @notice Request randomness

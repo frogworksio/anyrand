@@ -4,8 +4,10 @@ import {
     Anyrand,
     AnyrandConsumer,
     AnyrandConsumer__factory,
-    AnyrandOptimism__factory,
     Anyrand__factory,
+    GasStationEthereum,
+    GasStationEthereum__factory,
+    GasStationOptimism__factory,
     MockGasPriceOracle__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
@@ -39,10 +41,12 @@ describe('Anyrand', () => {
     let beaconSecretKey: Fr
     let beaconPeriod = 1n
     let beaconGenesisTimestamp = 1702549672n
+    let gasStation: GasStationEthereum
     beforeEach(async () => {
         ;[deployer, bob] = await ethers.getSigners()
         // drand beacon details
         ;({ pubKey: beaconPubKey, secretKey: beaconSecretKey } = await bls.createKeyPair())
+        gasStation = await new GasStationEthereum__factory(deployer).deploy()
         anyrandArgs = [
             bls.serialiseG2Point(beaconPubKey),
             beaconGenesisTimestamp,
@@ -50,6 +54,7 @@ describe('Anyrand', () => {
             parseEther('0.001'),
             2_000_000,
             1800, // 30 mins
+            await gasStation.getAddress(),
         ]
         anyrand = await new Anyrand__factory(deployer).deploy(...anyrandArgs)
 
@@ -134,8 +139,11 @@ describe('Anyrand', () => {
             deployer,
         )
 
-        // Deploy OP Anyrand
-        const anyrandOptimism = await new AnyrandOptimism__factory(deployer).deploy(...anyrandArgs)
+        // Deploy OP GasStation
+        const gasStationOptimism = await new GasStationOptimism__factory(deployer).deploy()
+        const args: Parameters<Anyrand__factory['deploy']> = [...anyrandArgs]
+        args[args.length - 1] = await gasStationOptimism.getAddress()
+        const anyrandOptimism = await new Anyrand__factory(deployer).deploy(...args)
         // Bedrock
         const bedrockRequestPrice = await anyrandOptimism.getRequestPrice(500_000)
         console.log(`Bedrock request price: ${formatEther(bedrockRequestPrice)}`)
