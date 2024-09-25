@@ -505,9 +505,9 @@
     "name": "getPubKey",
     "outputs": [
       {
-        "internalType": "uint256[4]",
+        "internalType": "bytes",
         "name": "",
-        "type": "uint256[4]"
+        "type": "bytes"
       }
     ],
     "stateMutability": "view",

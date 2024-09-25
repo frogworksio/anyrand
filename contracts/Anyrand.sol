@@ -44,40 +44,6 @@ contract Anyrand is IAnyrand, Ownable {
     /// @notice Gas station
     address public gasStation;
 
-    event RandomnessRequested(
-        uint256 indexed requestId,
-        address requester,
-        uint256 round,
-        uint256 callbackGasLimit,
-        uint256 feePaid
-    );
-    event RandomnessFulfilled(
-        uint256 indexed requestId,
-        uint256[] randomWords,
-        bool callbackSuccess
-    );
-    event RandomnessCallbackFailed(uint256 indexed requestId, bytes32 retdata);
-    event RequestPriceUpdated(uint256 newPrice);
-    event ETHWithdrawn(uint256 amount);
-    event MaxCallbackGasLimitUpdated(uint256 newMaxCallbackGasLimit);
-    event MaxDeadlineDeltaUpdated(uint256 maxDeadlineDelta);
-    event GasStationUpdated(address indexed newGasStation);
-
-    error TransferFailed(address to, uint256 value);
-    error IncorrectPayment(uint256 got, uint256 want);
-    error OverGasLimit(uint256 callbackGasLimit);
-    error InvalidRequestHash(bytes32 requestHash);
-    error InvalidSignature(
-        uint256[4] pubKey,
-        uint256[2] message,
-        uint256[2] signature
-    );
-    error InvalidPublicKey(uint256[4] pubKey);
-    error InvalidBeaconConfiguration(uint256 genesisTimestamp, uint256 period);
-    error InvalidDeadline(uint256 deadline);
-    error InsufficientGas();
-    error Reentrant();
-
     constructor(
         uint256[4] memory publicKey_,
         uint256 genesisTimestamp_,
@@ -126,14 +92,9 @@ contract Anyrand is IAnyrand, Ownable {
         }
     }
 
-    /// @notice Return this beacon's public key in memory
-    function getPubKey() public view returns (uint256[4] memory) {
-        uint256[4] memory pubKey;
-        pubKey[0] = publicKey0;
-        pubKey[1] = publicKey1;
-        pubKey[2] = publicKey2;
-        pubKey[3] = publicKey3;
-        return pubKey;
+    /// @notice Return this beacon's public key as bytes
+    function getPubKey() public view returns (bytes memory) {
+        return abi.encodePacked(publicKey0, publicKey1, publicKey2, publicKey3);
     }
 
     /// @notice Compute keccak256 of a request
@@ -285,7 +246,12 @@ contract Anyrand is IAnyrand, Ownable {
             mstore(add(0x20, hashedRoundBytes), hashedRound)
         }
 
-        uint256[4] memory pubKey = getPubKey();
+        uint256[4] memory pubKey = [
+            publicKey0,
+            publicKey1,
+            publicKey2,
+            publicKey3
+        ];
         uint256[2] memory message = BLS.hashToPoint(DST, hashedRoundBytes);
         bool isValidSignature = BLS.isValidSignature(signature);
         (bool pairingSuccess, bool callSuccess) = BLS.verifySingle(
