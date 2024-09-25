@@ -48,7 +48,8 @@ contract Anyrand is IAnyrand, Ownable {
         uint256 indexed requestId,
         address requester,
         uint256 round,
-        uint256 callbackGasLimit
+        uint256 callbackGasLimit,
+        uint256 feePaid
     );
     event RandomnessFulfilled(uint256 indexed requestId, uint256[] randomWords);
     event RequestPriceUpdated(uint256 newPrice);
@@ -256,7 +257,8 @@ contract Anyrand is IAnyrand, Ownable {
             requestId,
             msg.sender,
             round,
-            callbackGasLimit
+            callbackGasLimit,
+            reqPrice
         );
 
         return requestId;
