@@ -71,6 +71,17 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "beacon",
+        "type": "address"
+      }
+    ],
+    "name": "InvalidBeacon",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes",
         "name": "dst",
         "type": "bytes"
@@ -715,6 +726,19 @@
       }
     ],
     "name": "setBaseRequestPrice",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newBeacon",
+        "type": "address"
+      }
+    ],
+    "name": "setBeacon",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

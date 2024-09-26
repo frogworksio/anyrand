@@ -41,8 +41,7 @@ contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
 
         MainStorage storage $ = _getMainStorage();
 
-        $.beacon = beacon_;
-        emit BeaconUpdated(beacon_);
+        _setBeacon(beacon_);
 
         $.baseRequestPrice = initialRequestPrice;
         emit RequestPriceUpdated(initialRequestPrice);
@@ -315,9 +314,33 @@ contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
         $.reentranceLock = false;
     }
 
+    /// @notice Set the beacon
+    /// @param newBeacon The new beacon
+    function _setBeacon(address newBeacon) private {
+        // Sanity check
+        IDrandBeacon beacon = IDrandBeacon(newBeacon);
+        if (
+            beacon.publicKey().length == 0 ||
+            beacon.period() == 0 ||
+            beacon.genesisTimestamp() == 0
+        ) {
+            revert InvalidBeacon(newBeacon);
+        }
+
+        MainStorage storage $ = _getMainStorage();
+        $.beacon = newBeacon;
+        emit BeaconUpdated(newBeacon);
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     /// Privileged setters ////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////
+
+    /// @notice Set the beacon (privileged)
+    /// @param newBeacon The new beacon
+    function setBeacon(address newBeacon) external onlyOwner {
+        _setBeacon(newBeacon);
+    }
 
     /// @notice Update request price
     /// @param newPrice The new price

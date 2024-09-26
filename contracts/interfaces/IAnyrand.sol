@@ -36,6 +36,7 @@ interface IAnyrand is ITypeAndVersion {
     error InvalidDeadline(uint256 deadline);
     error InsufficientGas();
     error Reentrant();
+    error InvalidBeacon(address beacon);
 
     /// @notice Domain separation tag conforming to RFC9380
     function DST() external view returns (bytes memory);
