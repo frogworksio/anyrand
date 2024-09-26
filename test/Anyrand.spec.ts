@@ -5,21 +5,15 @@ import {
     AnyrandConsumer,
     AnyrandConsumer__factory,
     Anyrand__factory,
+    DrandBeacon,
+    DrandBeacon__factory,
     GasStationEthereum,
     GasStationEthereum__factory,
     GasStationOptimism__factory,
     MockGasPriceOracle__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import {
-    Wallet,
-    formatEther,
-    formatUnits,
-    getBytes,
-    keccak256,
-    parseEther,
-    toUtf8Bytes,
-} from 'ethers'
+import { Wallet, formatEther, formatUnits, getBytes, keccak256, parseEther } from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 
@@ -32,6 +26,7 @@ describe('Anyrand', () => {
     let bob: SignerWithAddress
     let anyrand: Anyrand
     let anyrandArgs: Parameters<Anyrand__factory['deploy']>
+    let drandBeacon: DrandBeacon
     let consumer: AnyrandConsumer
     let beaconPubKey: G2
     let beaconSecretKey: Uint8Array
@@ -45,10 +40,13 @@ describe('Anyrand', () => {
         beaconPubKey = bn254.G2.ProjectivePoint.fromPrivateKey(beaconSecretKey)
 
         gasStation = await new GasStationEthereum__factory(deployer).deploy()
-        anyrandArgs = [
+        drandBeacon = await new DrandBeacon__factory(deployer).deploy(
             [beaconPubKey.x.c0, beaconPubKey.x.c1, beaconPubKey.y.c0, beaconPubKey.y.c1],
             beaconGenesisTimestamp,
             beaconPeriod,
+        )
+        anyrandArgs = [
+            await drandBeacon.getAddress(),
             parseEther('0.001'),
             2_000_000,
             1800, // 30 mins
@@ -98,6 +96,7 @@ describe('Anyrand', () => {
         const fulfillRandomnessArgs: Parameters<typeof anyrand.fulfillRandomness> = [
             requestId,
             requester,
+            await drandBeacon.getPublicKeyHash(),
             round,
             callbackGasLimit,
             [roundBeacon.signature.x, roundBeacon.signature.y],

@@ -12,6 +12,8 @@ abstract contract AnyrandStorage is IAnyrand {
     struct MainStorage {
         /// @notice Reentrance flag
         bool reentranceLock;
+        /// @notice Current beacon
+        address beacon;
         /// @notice The base price of entropy
         uint256 baseRequestPrice;
         /// @notice Maximum callback gas limit

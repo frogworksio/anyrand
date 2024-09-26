@@ -7,6 +7,7 @@ import {Gas} from "./lib/Gas.sol";
 import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
 import {AnyrandStorage} from "./AnyrandStorage.sol";
 import {IGasStation} from "./interfaces/IGasStation.sol";
+import {IDrandBeacon} from "./interfaces/IDrandBeacon.sol";
 
 /// @title Anyrand
 /// @author Kevin Charm (kevin@frogworks.io)
@@ -17,43 +18,17 @@ contract Anyrand is AnyrandStorage, Ownable {
     bytes public constant DST =
         bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_");
 
-    /// @notice Group PK Re(x) in G2
-    uint256 public immutable publicKey0;
-    /// @notice Group PK Im(x) in G2
-    uint256 public immutable publicKey1;
-    /// @notice Group PK Re(y) in G2
-    uint256 public immutable publicKey2;
-    /// @notice Group PK Im(y) in G2
-    uint256 public immutable publicKey3;
-    /// @notice The beacon's period, in seconds
-    uint256 public immutable period;
-    /// @notice Genesis timestamp
-    uint256 public immutable genesisTimestamp;
-
     constructor(
-        uint256[4] memory publicKey_,
-        uint256 genesisTimestamp_,
-        uint256 period_,
+        address beacon_,
         uint256 initialRequestPrice,
         uint256 maxCallbackGasLimit_,
         uint256 maxDeadlineDelta_,
         address gasStation_
     ) Ownable(msg.sender) {
-        if (!BLS.isValidPublicKey(publicKey_)) {
-            revert InvalidPublicKey(publicKey_);
-        }
-        publicKey0 = publicKey_[0];
-        publicKey1 = publicKey_[1];
-        publicKey2 = publicKey_[2];
-        publicKey3 = publicKey_[3];
-
-        if (genesisTimestamp_ == 0 || period_ == 0) {
-            revert InvalidBeaconConfiguration(genesisTimestamp_, period_);
-        }
-        genesisTimestamp = genesisTimestamp_;
-        period = period_;
-
         MainStorage storage $ = _getMainStorage();
+
+        $.beacon = beacon_;
+        emit BeaconUpdated(beacon_);
 
         $.baseRequestPrice = initialRequestPrice;
         emit RequestPriceUpdated(initialRequestPrice);
@@ -81,18 +56,16 @@ contract Anyrand is AnyrandStorage, Ownable {
         }
     }
 
-    /// @notice Return this beacon's public key as bytes
-    function getPubKey() public view returns (bytes memory) {
-        return abi.encodePacked(publicKey0, publicKey1, publicKey2, publicKey3);
-    }
-
     /// @notice Compute keccak256 of a request
     /// @param requestId Request id, acts as a nonce
     /// @param requester Address of contract that initiated the request.
+    /// @param pubKeyHash hash of the beacon's public key
     /// @param round Target round of the drand beacon.
+    /// @param callbackGasLimit Gas limit for callback
     function hashRequest(
         uint256 requestId,
         address requester,
+        bytes32 pubKeyHash,
         uint256 round,
         uint256 callbackGasLimit
     ) internal view returns (bytes32) {
@@ -103,6 +76,7 @@ contract Anyrand is AnyrandStorage, Ownable {
                     address(this),
                     requestId,
                     requester,
+                    pubKeyHash,
                     round,
                     callbackGasLimit
                 )
@@ -160,19 +134,23 @@ contract Anyrand is AnyrandStorage, Ownable {
 
         uint256 requestId = $.nextRequestId++;
 
+        IDrandBeacon beacon = IDrandBeacon($.beacon);
         // Calculate nearest round from deadline (rounding to the future)
         if (
-            (deadline < genesisTimestamp) ||
-            deadline < (block.timestamp + period)
+            (deadline < beacon.genesisTimestamp()) ||
+            deadline < (block.timestamp + beacon.period())
         ) {
             revert InvalidDeadline(deadline);
         }
-        uint256 delta = deadline - genesisTimestamp;
-        uint64 round = uint64((delta / period) + (delta % period));
+        uint256 delta = deadline - beacon.genesisTimestamp();
+        uint64 round = uint64(
+            (delta / beacon.period()) + (delta % beacon.period())
+        );
 
         $.requests[requestId] = hashRequest(
             requestId,
             msg.sender,
+            beacon.getPublicKeyHash(),
             round,
             callbackGasLimit
         );
@@ -186,6 +164,20 @@ contract Anyrand is AnyrandStorage, Ownable {
         );
 
         return requestId;
+    }
+
+    /// @notice Deserialise the public key from raw bytes for ecpairing
+    function _deserialisePublicKey() private view returns (uint256[4] memory) {
+        (
+            uint256 pubKey0,
+            uint256 pubKey1,
+            uint256 pubKey2,
+            uint256 pubKey3
+        ) = abi.decode(
+                IDrandBeacon(_getMainStorage().beacon).getPublicKey(),
+                (uint256, uint256, uint256, uint256)
+            );
+        return [pubKey0, pubKey1, pubKey2, pubKey3];
     }
 
     /// @notice Verify the signature produced by a drand beacon round against
@@ -204,12 +196,7 @@ contract Anyrand is AnyrandStorage, Ownable {
             mstore(add(0x20, hashedRoundBytes), hashedRound)
         }
 
-        uint256[4] memory pubKey = [
-            publicKey0,
-            publicKey1,
-            publicKey2,
-            publicKey3
-        ];
+        uint256[4] memory pubKey = _deserialisePublicKey();
         uint256[2] memory message = BLS.hashToPoint(DST, hashedRoundBytes);
         bool isValidSignature = BLS.isValidSignature(signature);
         (bool pairingSuccess, bool callSuccess) = BLS.verifySingle(
@@ -232,6 +219,7 @@ contract Anyrand is AnyrandStorage, Ownable {
     function fulfillRandomness(
         uint256 requestId,
         address requester,
+        bytes32 pubKeyHash,
         uint256 round,
         uint256 callbackGasLimit,
         uint256[2] calldata signature
@@ -241,6 +229,7 @@ contract Anyrand is AnyrandStorage, Ownable {
         bytes32 reqHash = hashRequest(
             requestId,
             requester,
+            pubKeyHash,
             round,
             callbackGasLimit
         );

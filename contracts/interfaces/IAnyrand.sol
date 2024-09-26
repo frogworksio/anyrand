@@ -19,6 +19,7 @@ interface IAnyrand is ITypeAndVersion {
     event RandomnessCallbackFailed(uint256 indexed requestId, bytes32 retdata);
     event RequestPriceUpdated(uint256 newPrice);
     event ETHWithdrawn(uint256 amount);
+    event BeaconUpdated(address indexed newBeacon);
     event MaxCallbackGasLimitUpdated(uint256 newMaxCallbackGasLimit);
     event MaxDeadlineDeltaUpdated(uint256 maxDeadlineDelta);
     event GasStationUpdated(address indexed newGasStation);
@@ -32,17 +33,12 @@ interface IAnyrand is ITypeAndVersion {
         uint256[2] message,
         uint256[2] signature
     );
-    error InvalidPublicKey(uint256[4] pubKey);
-    error InvalidBeaconConfiguration(uint256 genesisTimestamp, uint256 period);
     error InvalidDeadline(uint256 deadline);
     error InsufficientGas();
     error Reentrant();
 
     /// @notice Domain separation tag conforming to RFC9380
     function DST() external view returns (bytes memory);
-
-    /// @notice Return this beacon's public key
-    function getPubKey() external view returns (bytes memory);
 
     /// @notice Compute the total request price
     /// @param callbackGasLimit The callback gas limit that will be used for

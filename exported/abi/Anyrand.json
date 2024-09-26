@@ -2,19 +2,9 @@
   {
     "inputs": [
       {
-        "internalType": "uint256[4]",
-        "name": "publicKey_",
-        "type": "uint256[4]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "genesisTimestamp_",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "period_",
-        "type": "uint256"
+        "internalType": "address",
+        "name": "beacon_",
+        "type": "address"
       },
       {
         "internalType": "uint256",
@@ -75,22 +65,6 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "genesisTimestamp",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "period",
-        "type": "uint256"
-      }
-    ],
-    "name": "InvalidBeaconConfiguration",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "bytes",
         "name": "dst",
         "type": "bytes"
@@ -119,17 +93,6 @@
       }
     ],
     "name": "InvalidFieldElement",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256[4]",
-        "name": "pubKey",
-        "type": "uint256[4]"
-      }
-    ],
-    "name": "InvalidPublicKey",
     "type": "error"
   },
   {
@@ -249,6 +212,19 @@
     ],
     "name": "TransferFailed",
     "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newBeacon",
+        "type": "address"
+      }
+    ],
+    "name": "BeaconUpdated",
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -454,6 +430,11 @@
         "type": "address"
       },
       {
+        "internalType": "bytes32",
+        "name": "pubKeyHash",
+        "type": "bytes32"
+      },
+      {
         "internalType": "uint256",
         "name": "round",
         "type": "uint256"
@@ -482,32 +463,6 @@
         "internalType": "address",
         "name": "",
         "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "genesisTimestamp",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getPubKey",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
       }
     ],
     "stateMutability": "view",
@@ -579,71 +534,6 @@
         "internalType": "address",
         "name": "",
         "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "period",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "publicKey0",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "publicKey1",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "publicKey2",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "publicKey3",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
