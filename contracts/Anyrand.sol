@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.23;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {BLS} from "@kevincharm/bls-bn254/contracts/BLS.sol";
 import {Gas} from "./lib/Gas.sol";
 import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
@@ -13,18 +14,31 @@ import {IDrandBeacon} from "./interfaces/IDrandBeacon.sol";
 /// @author Kevin Charm (kevin@frogworks.io)
 /// @notice Coordinator for requesting and receiving verified randomness from
 ///     a drand (https://drand.love) beacon.
-contract Anyrand is AnyrandStorage, Ownable {
+contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
     /// @notice Domain separation tag
     bytes public constant DST =
         bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_");
 
-    constructor(
+    constructor() {
+        _disableInitializers();
+    }
+
+    /// @notice Initialise the contract
+    /// @param beacon_ The address of contract with drand beacon data
+    /// @param initialRequestPrice The initial base request price
+    /// @param maxCallbackGasLimit_ The maximum callback gas limit
+    /// @param maxDeadlineDelta_ The maximum deadline delta
+    /// @param gasStation_ The address of the gas station
+    function init(
         address beacon_,
         uint256 initialRequestPrice,
         uint256 maxCallbackGasLimit_,
         uint256 maxDeadlineDelta_,
         address gasStation_
-    ) Ownable(msg.sender) {
+    ) public initializer {
+        __UUPSUpgradeable_init();
+        __Ownable_init(msg.sender);
+
         MainStorage storage $ = _getMainStorage();
 
         $.beacon = beacon_;
@@ -42,6 +56,11 @@ contract Anyrand is AnyrandStorage, Ownable {
         $.gasStation = gasStation_;
         emit GasStationUpdated(gasStation_);
     }
+
+    /// @inheritdoc UUPSUpgradeable
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 
     /// @notice See {ITypeAndVersion-typeAndVersion}
     function typeAndVersion() external pure returns (string memory) {

@@ -7,6 +7,7 @@ import {
     Anyrand__factory,
     DrandBeacon,
     DrandBeacon__factory,
+    ERC1967Proxy__factory,
     GasStationEthereum,
     GasStationEthereum__factory,
     GasStationOptimism__factory,
@@ -24,8 +25,9 @@ const DST = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_'
 describe('Anyrand', () => {
     let deployer: SignerWithAddress
     let bob: SignerWithAddress
+    let anyrandImpl: Anyrand
     let anyrand: Anyrand
-    let anyrandArgs: Parameters<Anyrand__factory['deploy']>
+    let anyrandArgs: Parameters<Anyrand['init']>
     let drandBeacon: DrandBeacon
     let consumer: AnyrandConsumer
     let beaconPubKey: G2
@@ -52,7 +54,12 @@ describe('Anyrand', () => {
             1800, // 30 mins
             await gasStation.getAddress(),
         ]
-        anyrand = await new Anyrand__factory(deployer).deploy(...anyrandArgs)
+        anyrandImpl = await new Anyrand__factory(deployer).deploy()
+        const anyrandProxy = await new ERC1967Proxy__factory(deployer).deploy(
+            await anyrandImpl.getAddress(),
+            anyrandImpl.interface.encodeFunctionData('init', anyrandArgs as any),
+        )
+        anyrand = Anyrand__factory.connect(await anyrandProxy.getAddress(), deployer)
 
         consumer = await new AnyrandConsumer__factory(deployer).deploy(await anyrand.getAddress())
     })
@@ -137,9 +144,13 @@ describe('Anyrand', () => {
 
         // Deploy OP GasStation
         const gasStationOptimism = await new GasStationOptimism__factory(deployer).deploy()
-        const args: Parameters<Anyrand__factory['deploy']> = [...anyrandArgs]
+        const args: Parameters<Anyrand['init']> = [...anyrandArgs]
         args[args.length - 1] = await gasStationOptimism.getAddress()
-        const anyrandOptimism = await new Anyrand__factory(deployer).deploy(...args)
+        const anyrandProxy = await new ERC1967Proxy__factory(deployer).deploy(
+            await anyrandImpl.getAddress(),
+            anyrandImpl.interface.encodeFunctionData('init', args as any),
+        )
+        const anyrandOptimism = Anyrand__factory.connect(await anyrandProxy.getAddress(), deployer)
         // Bedrock
         const bedrockRequestPrice = await anyrandOptimism.getRequestPrice(500_000)
         console.log(`Bedrock request price: ${formatEther(bedrockRequestPrice)}`)
