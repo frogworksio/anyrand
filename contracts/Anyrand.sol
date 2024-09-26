@@ -120,11 +120,13 @@ contract Anyrand is AnyrandStorage, Ownable {
         uint256 callbackGasLimit
     ) external payable override returns (uint256) {
         _assertNoReentrance();
-        MainStorage storage $ = _getMainStorage();
+
         uint256 reqPrice = getRequestPrice(callbackGasLimit);
         if (msg.value != reqPrice) {
             revert IncorrectPayment(msg.value, reqPrice);
         }
+
+        MainStorage storage $ = _getMainStorage();
         if (callbackGasLimit > $.maxCallbackGasLimit) {
             revert OverGasLimit(callbackGasLimit);
         }
@@ -132,21 +134,17 @@ contract Anyrand is AnyrandStorage, Ownable {
             revert InvalidDeadline(deadline);
         }
 
-        uint256 requestId = $.nextRequestId++;
-
         IDrandBeacon beacon = IDrandBeacon($.beacon);
+        uint256 genesis = beacon.genesisTimestamp();
+        uint256 period = beacon.period();
         // Calculate nearest round from deadline (rounding to the future)
-        if (
-            (deadline < beacon.genesisTimestamp()) ||
-            deadline < (block.timestamp + beacon.period())
-        ) {
+        if ((deadline < genesis) || deadline < (block.timestamp + period)) {
             revert InvalidDeadline(deadline);
         }
-        uint256 delta = deadline - beacon.genesisTimestamp();
-        uint64 round = uint64(
-            (delta / beacon.period()) + (delta % beacon.period())
-        );
+        uint256 delta = deadline - genesis;
+        uint64 round = uint64((delta / period) + (delta % period));
 
+        uint256 requestId = $.nextRequestId++;
         $.requests[requestId] = hashRequest(
             requestId,
             msg.sender,
