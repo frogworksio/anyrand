@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.23;
 
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {OwnableRoles} from "solady/src/auth/OwnableRoles.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {BLS} from "@kevincharm/bls-bn254/contracts/BLS.sol";
 import {Gas} from "./lib/Gas.sol";
@@ -14,10 +14,19 @@ import {IDrandBeacon} from "./interfaces/IDrandBeacon.sol";
 /// @author Kevin Charm (kevin@frogworks.io)
 /// @notice Coordinator for requesting and receiving verified randomness from
 ///     a drand (https://drand.love) beacon.
-contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
+contract Anyrand is AnyrandStorage, OwnableRoles, UUPSUpgradeable {
     /// @notice Domain separation tag
     bytes public constant DST =
         bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_");
+
+    /// @notice Role to upgrade the contract
+    uint256 public constant UPGRADER_ROLE = _ROLE_0;
+    /// @notice Role to do accounting stuff e.g. withdraw ETH
+    uint256 public constant ACCOUNTING_ROLE = _ROLE_1;
+    /// @notice Role to set/change/upgrade the beacon
+    uint256 public constant BEACON_ADMIN_ROLE = _ROLE_2;
+    /// @notice Role to configure various parameters of the contract
+    uint256 public constant CONFIGURATOR_ROLE = _ROLE_3;
 
     constructor() {
         _disableInitializers();
@@ -37,7 +46,8 @@ contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
         address gasStation_
     ) public initializer {
         __UUPSUpgradeable_init();
-        __Ownable_init(msg.sender);
+        // OwnableRoles
+        _initializeOwner(msg.sender);
 
         MainStorage storage $ = _getMainStorage();
 
@@ -59,7 +69,7 @@ contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
     /// @inheritdoc UUPSUpgradeable
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyOwner {}
+    ) internal override onlyRoles(UPGRADER_ROLE) {}
 
     /// @notice See {ITypeAndVersion-typeAndVersion}
     function typeAndVersion() external pure returns (string memory) {
@@ -104,7 +114,7 @@ contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
     /// @notice Withdraw ETH
     /// @param amount Amount of ETH (in wei) to withdraw. Input 0
     ///     to withdraw entire balance
-    function withdrawETH(uint256 amount) external onlyOwner {
+    function withdrawETH(uint256 amount) external onlyRoles(ACCOUNTING_ROLE) {
         if (amount == 0) {
             amount = address(this).balance;
         }
@@ -338,13 +348,17 @@ contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
 
     /// @notice Set the beacon (privileged)
     /// @param newBeacon The new beacon
-    function setBeacon(address newBeacon) external onlyOwner {
+    function setBeacon(
+        address newBeacon
+    ) external onlyRoles(BEACON_ADMIN_ROLE) {
         _setBeacon(newBeacon);
     }
 
     /// @notice Update request price
     /// @param newPrice The new price
-    function setBaseRequestPrice(uint256 newPrice) external onlyOwner {
+    function setBaseRequestPrice(
+        uint256 newPrice
+    ) external onlyRoles(CONFIGURATOR_ROLE) {
         MainStorage storage $ = _getMainStorage();
         $.baseRequestPrice = newPrice;
         emit RequestPriceUpdated(newPrice);
@@ -354,7 +368,7 @@ contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
     /// @param newMaxCallbackGasLimit The new max callback gas limit
     function setMaxCallbackGasLimit(
         uint256 newMaxCallbackGasLimit
-    ) external onlyOwner {
+    ) external onlyRoles(CONFIGURATOR_ROLE) {
         MainStorage storage $ = _getMainStorage();
         $.maxCallbackGasLimit = newMaxCallbackGasLimit;
         emit MaxCallbackGasLimitUpdated(newMaxCallbackGasLimit);
@@ -364,7 +378,7 @@ contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
     /// @param newMaxDeadlineDelta The new max deadline delta
     function setMaxDeadlineDelta(
         uint256 newMaxDeadlineDelta
-    ) external onlyOwner {
+    ) external onlyRoles(CONFIGURATOR_ROLE) {
         MainStorage storage $ = _getMainStorage();
         $.maxDeadlineDelta = newMaxDeadlineDelta;
         emit MaxDeadlineDeltaUpdated(newMaxDeadlineDelta);
@@ -372,7 +386,9 @@ contract Anyrand is AnyrandStorage, OwnableUpgradeable, UUPSUpgradeable {
 
     /// @notice Set the gas station
     /// @param newGasStation The new gas station
-    function setGasStation(address newGasStation) external onlyOwner {
+    function setGasStation(
+        address newGasStation
+    ) external onlyRoles(CONFIGURATOR_ROLE) {
         MainStorage storage $ = _getMainStorage();
         $.gasStation = newGasStation;
         emit GasStationUpdated(newGasStation);
