@@ -14,7 +14,13 @@
     "test": "yarn hardhat --network hardhat test",
     "coverage": "yarn hardhat --network hardhat coverage"
   },
-  "keywords": ["solidity", "vrf", "drand", "bls", "bn254"],
+  "keywords": [
+    "solidity",
+    "vrf",
+    "drand",
+    "bls",
+    "bn254"
+  ],
   "author": "Kevin Charm <kevin@frogworks.io>",
   "license": "UNLICENSED",
   "devDependencies": {
@@ -53,7 +59,7 @@
     "@openzeppelin/contracts": "^5.0.0",
     "@openzeppelin/contracts-upgradeable": "^5.0.0",
     "@scroll-tech/contracts": "^0.1.0",
-    "solady": "^0.0.201"
+    "solady": "^0.0.245"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

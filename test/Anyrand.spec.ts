@@ -96,7 +96,7 @@ describe('Anyrand', () => {
         const fulfillRandomnessArgs: Parameters<typeof anyrand.fulfillRandomness> = [
             requestId,
             requester,
-            await drandBeacon.getPublicKeyHash(),
+            await drandBeacon.publicKeyHash(),
             round,
             callbackGasLimit,
             [roundBeacon.signature.x, roundBeacon.signature.y],

@@ -150,7 +150,7 @@ contract Anyrand is AnyrandStorage, Ownable {
         $.requests[requestId] = hashRequest(
             requestId,
             msg.sender,
-            beacon.getPublicKeyHash(),
+            beacon.publicKeyHash(),
             round,
             callbackGasLimit
         );
@@ -174,7 +174,7 @@ contract Anyrand is AnyrandStorage, Ownable {
             uint256 pubKey2,
             uint256 pubKey3
         ) = abi.decode(
-                IDrandBeacon(_getMainStorage().beacon).getPublicKey(),
+                IDrandBeacon(_getMainStorage().beacon).publicKey(),
                 (uint256, uint256, uint256, uint256)
             );
         return [pubKey0, pubKey1, pubKey2, pubKey3];
