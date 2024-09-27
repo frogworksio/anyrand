@@ -71,3 +71,9 @@ export async function deployAnyrandStack(config: AnyrandStackConfig) {
         gasStation,
     }
 }
+
+export function getRound(genesis: bigint, deadline: bigint, period: bigint) {
+    const delta = deadline - genesis
+    const round = delta / period + (delta % period)
+    return round
+}

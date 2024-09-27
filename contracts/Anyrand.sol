@@ -154,17 +154,18 @@ contract Anyrand is
         if (callbackGasLimit > $.maxCallbackGasLimit) {
             revert OverGasLimit(callbackGasLimit);
         }
-        if (deadline > block.timestamp + $.maxDeadlineDelta) {
-            revert InvalidDeadline(deadline);
-        }
 
         IDrandBeacon beacon_ = IDrandBeacon($.beacon);
         uint256 genesis = beacon_.genesisTimestamp();
         uint256 period = beacon_.period();
-        // Calculate nearest round from deadline (rounding to the future)
-        if ((deadline < genesis) || deadline < (block.timestamp + period)) {
+        if (
+            (deadline > block.timestamp + $.maxDeadlineDelta) ||
+            (deadline < genesis) ||
+            deadline < (block.timestamp + period)
+        ) {
             revert InvalidDeadline(deadline);
         }
+        // Calculate nearest round from deadline (rounding to the future)
         uint256 delta = deadline - genesis;
         uint64 round = uint64((delta / period) + (delta % period));
 
