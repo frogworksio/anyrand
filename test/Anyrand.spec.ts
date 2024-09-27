@@ -17,6 +17,7 @@ import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 import { Wallet, formatEther, formatUnits, getBytes, keccak256, parseEther } from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
+import { deployAnyrandStack } from './helpers'
 
 type G1 = typeof bn254.G1.ProjectivePoint.BASE
 type G2 = typeof bn254.G2.ProjectivePoint.BASE
@@ -40,26 +41,16 @@ describe('Anyrand', () => {
         // drand beacon details
         beaconSecretKey = bn254.utils.randomPrivateKey()
         beaconPubKey = bn254.G2.ProjectivePoint.fromPrivateKey(beaconSecretKey)
-
-        gasStation = await new GasStationEthereum__factory(deployer).deploy()
-        drandBeacon = await new DrandBeacon__factory(deployer).deploy(
-            [beaconPubKey.x.c0, beaconPubKey.x.c1, beaconPubKey.y.c0, beaconPubKey.y.c1],
-            beaconGenesisTimestamp,
-            beaconPeriod,
-        )
-        anyrandArgs = [
-            await drandBeacon.getAddress(),
-            parseEther('0.001'),
-            2_000_000,
-            1800, // 30 mins
-            await gasStation.getAddress(),
-        ]
-        anyrandImpl = await new Anyrand__factory(deployer).deploy()
-        const anyrandProxy = await new ERC1967Proxy__factory(deployer).deploy(
-            await anyrandImpl.getAddress(),
-            anyrandImpl.interface.encodeFunctionData('init', anyrandArgs as any),
-        )
-        anyrand = Anyrand__factory.connect(await anyrandProxy.getAddress(), deployer)
+        ;({ anyrand, anyrandImpl, anyrandArgs, drandBeacon, gasStation } = await deployAnyrandStack(
+            {
+                deployer,
+                beacon: {
+                    pubKey: beaconPubKey.toHex(),
+                    genesisTimestamp: beaconGenesisTimestamp,
+                    period: beaconPeriod,
+                },
+            },
+        ))
 
         consumer = await new AnyrandConsumer__factory(deployer).deploy(await anyrand.getAddress())
     })
