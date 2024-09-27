@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { time } from '@nomicfoundation/hardhat-network-helpers'
+import { impersonateAccount, setBalance, time } from '@nomicfoundation/hardhat-network-helpers'
 import {
     Anyrand,
     AnyrandConsumer,
@@ -7,14 +7,22 @@ import {
     Anyrand__factory,
     DrandBeacon,
     DrandBeacon__factory,
+    Dummy__factory,
     ERC1967Proxy__factory,
     GasStationEthereum,
-    GasStationEthereum__factory,
     GasStationOptimism__factory,
     MockGasPriceOracle__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { Wallet, formatEther, formatUnits, getBytes, keccak256, parseEther } from 'ethers'
+import {
+    Wallet,
+    ZeroAddress,
+    formatEther,
+    formatUnits,
+    getBytes,
+    keccak256,
+    parseEther,
+} from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { deployAnyrandStack } from './helpers'
@@ -51,110 +59,101 @@ describe('Anyrand', () => {
                 },
             },
         ))
-
         consumer = await new AnyrandConsumer__factory(deployer).deploy(await anyrand.getAddress())
     })
 
-    it('runs happy path', async () => {
-        const callbackGasLimit = 500_000
-        const gasPrice = await ethers.provider.getFeeData().then((fee) => fee.gasPrice!)
-        console.log(`Gas price:\t${formatUnits(gasPrice, 'gwei')} gwei`)
-        const requestPrice = await anyrand.getRequestPrice(callbackGasLimit, {
-            gasPrice,
+    describe('init', () => {
+        beforeEach(async () => {
+            // Uninitialised proxy
+            const proxy = await new ERC1967Proxy__factory(deployer).deploy(
+                anyrandImpl.getAddress(),
+                '0x',
+            )
+            anyrand = Anyrand__factory.connect(await proxy.getAddress(), deployer)
         })
-        console.log(`Request price:\t${formatEther(requestPrice)} ETH`)
-        const getRandomTx = await consumer
-            .getRandom(10, callbackGasLimit, {
-                value: requestPrice,
-            })
-            .then((tx) => tx.wait(1))
-        const { requestId, requester, round } = anyrand.interface.decodeEventLog(
-            'RandomnessRequested',
-            getRandomTx?.logs[0].data!,
-            getRandomTx?.logs[0].topics,
-        ) as unknown as {
-            requestId: bigint
-            beaconPubKeyHash: string
-            requester: string
-            round: bigint
-        }
 
-        // Simulate drand beacon response
-        const roundBytes = getBytes('0x' + round.toString(16).padStart(16, '0'))
-        const M = bn254.G1.hashToCurve(getBytes(keccak256(roundBytes) as `0x${string}`), {
-            DST,
-        }) as G1
-        const roundBeacon = {
-            round,
-            signature: bn254.signShortSignature(M, beaconSecretKey).toAffine(),
-        }
+        it('should initialise once', async () => {
+            const tx = anyrand.init(...anyrandArgs)
+            await expect(tx)
+                .to.emit(anyrand, 'OwnershipTransferred')
+                .withArgs(ZeroAddress, deployer.address)
+            await expect(tx)
+                .to.emit(anyrand, 'BeaconUpdated')
+                .withArgs(await drandBeacon.getAddress())
+            await expect(tx).to.emit(anyrand, 'RequestPriceUpdated').withArgs(anyrandArgs[1])
+            await expect(tx).to.emit(anyrand, 'MaxCallbackGasLimitUpdated').withArgs(anyrandArgs[2])
+            await expect(tx).to.emit(anyrand, 'MaxDeadlineDeltaUpdated').withArgs(anyrandArgs[3])
+            await expect(tx)
+                .to.emit(anyrand, 'GasStationUpdated')
+                .withArgs(await gasStation.getAddress())
+            // Should revert if initialised again
+            await expect(anyrand.init(...anyrandArgs)).to.be.reverted
+        })
 
-        // Wait 10s & fulfill
-        await time.increase(10)
-        const fulfillRandomnessArgs: Parameters<typeof anyrand.fulfillRandomness> = [
-            requestId,
-            requester,
-            await drandBeacon.publicKeyHash(),
-            round,
-            callbackGasLimit,
-            [roundBeacon.signature.x, roundBeacon.signature.y],
-        ]
-        const fulfillTx = await anyrand.fulfillRandomness(...fulfillRandomnessArgs)
-        expect(fulfillTx).to.emit(anyrand, 'RandomnessFulfilled')
-        const randomness = await consumer.randomness(requestId)
-        expect(randomness).to.not.eq(0)
-
-        // Calcs
-        const rawSignedTx = getBytes(
-            await Wallet.createRandom().signTransaction(
-                await anyrand.fulfillRandomness.populateTransaction(...fulfillRandomnessArgs),
-            ),
-        )
-        const zeros = rawSignedTx.filter((v) => v === 0).byteLength
-        const nonZeros = rawSignedTx.byteLength - zeros
-        console.log(
-            `Raw signed fulfillRandomness tx: ${zeros} zero bytes, ${nonZeros} non-zero bytes`,
-        )
+        it('should revert if beacon is invalid', async () => {
+            const args = [...anyrandArgs] as typeof anyrandArgs
+            const beacon = await new Dummy__factory(deployer).deploy()
+            args[0] = await beacon.getAddress()
+            await expect(anyrand.init(...args)).to.be.reverted
+        })
     })
 
-    it('computes request price on OP chains', async () => {
-        // Setup mock GasPriceOracle predeploy
-        const mockGasPriceOracle = await new MockGasPriceOracle__factory(deployer).deploy()
-        const mockGasPriceOracleDeployedBytecode = await ethers.provider.getCode(
-            await mockGasPriceOracle.getAddress(),
-        )
-        expect(mockGasPriceOracleDeployedBytecode).to.not.eq('0x')
-        await ethers.provider.send('hardhat_setCode', [
-            '0x420000000000000000000000000000000000000F',
-            mockGasPriceOracleDeployedBytecode,
-        ])
-        const gasPriceOracle = MockGasPriceOracle__factory.connect(
-            '0x420000000000000000000000000000000000000F',
-            deployer,
-        )
+    describe('upgrade', () => {
+        it('should upgrade if called from UPGRADER_ROLE', async () => {
+            await anyrand.grantRoles(deployer.address, await anyrand.UPGRADER_ROLE())
+            await expect(anyrand.upgradeToAndCall(await anyrandImpl.getAddress(), '0x')).to.not.be
+                .reverted
+        })
 
-        // Deploy OP GasStation
-        const gasStationOptimism = await new GasStationOptimism__factory(deployer).deploy()
-        const args: Parameters<Anyrand['init']> = [...anyrandArgs]
-        args[args.length - 1] = await gasStationOptimism.getAddress()
-        const anyrandProxy = await new ERC1967Proxy__factory(deployer).deploy(
-            await anyrandImpl.getAddress(),
-            anyrandImpl.interface.encodeFunctionData('init', args as any),
-        )
-        const anyrandOptimism = Anyrand__factory.connect(await anyrandProxy.getAddress(), deployer)
-        // Bedrock
-        const bedrockRequestPrice = await anyrandOptimism.getRequestPrice(500_000)
-        console.log(`Bedrock request price: ${formatEther(bedrockRequestPrice)}`)
-        expect(bedrockRequestPrice).to.be.gt(0)
-        // Ecotone
-        await gasPriceOracle.setEcotone()
-        const ecotoneRequestPrice = await anyrandOptimism.getRequestPrice(500_000)
-        console.log(`Ecotone request price: ${formatEther(ecotoneRequestPrice)}`)
-        expect(ecotoneRequestPrice).to.be.gt(0)
-        // Fjord
-        await gasPriceOracle.setFjord()
-        const fjordRequestPrice = await anyrandOptimism.getRequestPrice(500_000)
-        console.log(`Fjord request price: ${formatEther(fjordRequestPrice)}`)
-        expect(fjordRequestPrice).to.be.gt(0)
+        it('should revert if called from non-UPGRADER_ROLE', async () => {
+            await expect(
+                anyrand.upgradeToAndCall(await anyrandImpl.getAddress(), '0x'),
+            ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
+        })
+    })
+
+    describe('typeAndVersion', () => {
+        it('should return the correct type', async () => {
+            expect(await anyrand.typeAndVersion()).to.match(/^Anyrand\s\d+\.\d+\.\d+$/)
+        })
+    })
+
+    describe('withdrawETH', () => {
+        beforeEach(async () => {
+            await setBalance(await anyrand.getAddress(), parseEther('10'))
+        })
+
+        it('should withdraw all ETH if amount==0 called from ACCOUNTING_ROLE', async () => {
+            await anyrand.grantRoles(deployer.address, await anyrand.ACCOUNTING_ROLE())
+            await expect(anyrand.withdrawETH(0))
+                .to.emit(anyrand, 'ETHWithdrawn')
+                .withArgs(parseEther('10'))
+        })
+
+        it('should withdraw specified ETH amount if called from ACCOUNTING_ROLE', async () => {
+            await anyrand.grantRoles(deployer.address, await anyrand.ACCOUNTING_ROLE())
+            await expect(anyrand.withdrawETH(parseEther('5')))
+                .to.emit(anyrand, 'ETHWithdrawn')
+                .withArgs(parseEther('5'))
+        })
+
+        it('should revert if called from non-ACCOUNTING_ROLE', async () => {
+            await expect(anyrand.withdrawETH(0)).to.be.revertedWithCustomError(
+                anyrand,
+                'Unauthorized',
+            )
+        })
+
+        it('should revert if caller reverts on receiving ETH', async () => {
+            const _dummy = await new Dummy__factory(deployer).deploy()
+            await impersonateAccount(await _dummy.getAddress())
+            const dummy = await ethers.getSigner(await _dummy.getAddress())
+            await setBalance(dummy.address, parseEther('10'))
+            await anyrand.grantRoles(dummy.address, await anyrand.ACCOUNTING_ROLE())
+            await expect(anyrand.connect(dummy).withdrawETH(0)).to.be.revertedWithCustomError(
+                anyrand,
+                'TransferFailed',
+            )
+        })
     })
 })

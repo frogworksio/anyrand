@@ -2,6 +2,7 @@
 pragma solidity 0.8.23;
 
 import {OwnableRoles} from "solady/src/auth/OwnableRoles.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {BLS} from "@kevincharm/bls-bn254/contracts/BLS.sol";
 import {Gas} from "./lib/Gas.sol";
@@ -14,7 +15,12 @@ import {IDrandBeacon} from "./interfaces/IDrandBeacon.sol";
 /// @author Kevin Charm (kevin@frogworks.io)
 /// @notice Coordinator for requesting and receiving verified randomness from
 ///     a drand (https://drand.love) beacon.
-contract Anyrand is AnyrandStorage, OwnableRoles, UUPSUpgradeable {
+contract Anyrand is
+    AnyrandStorage,
+    OwnableRoles,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable
+{
     /// @notice Domain separation tag
     bytes public constant DST =
         bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_");
@@ -74,14 +80,6 @@ contract Anyrand is AnyrandStorage, OwnableRoles, UUPSUpgradeable {
     /// @notice See {ITypeAndVersion-typeAndVersion}
     function typeAndVersion() external pure returns (string memory) {
         return "Anyrand 1.0.0";
-    }
-
-    /// @notice Assert that the reentrance lock is not set
-    function _assertNoReentrance() internal view {
-        MainStorage storage $ = _getMainStorage();
-        if ($.reentranceLock) {
-            revert Reentrant();
-        }
     }
 
     /// @notice Compute keccak256 of a request
@@ -146,9 +144,7 @@ contract Anyrand is AnyrandStorage, OwnableRoles, UUPSUpgradeable {
     function requestRandomness(
         uint256 deadline,
         uint256 callbackGasLimit
-    ) external payable override returns (uint256) {
-        _assertNoReentrance();
-
+    ) external payable override nonReentrant returns (uint256) {
         uint256 reqPrice = getRequestPrice(callbackGasLimit);
         if (msg.value != reqPrice) {
             revert IncorrectPayment(msg.value, reqPrice);
@@ -162,9 +158,9 @@ contract Anyrand is AnyrandStorage, OwnableRoles, UUPSUpgradeable {
             revert InvalidDeadline(deadline);
         }
 
-        IDrandBeacon beacon = IDrandBeacon($.beacon);
-        uint256 genesis = beacon.genesisTimestamp();
-        uint256 period = beacon.period();
+        IDrandBeacon beacon_ = IDrandBeacon($.beacon);
+        uint256 genesis = beacon_.genesisTimestamp();
+        uint256 period = beacon_.period();
         // Calculate nearest round from deadline (rounding to the future)
         if ((deadline < genesis) || deadline < (block.timestamp + period)) {
             revert InvalidDeadline(deadline);
@@ -176,7 +172,7 @@ contract Anyrand is AnyrandStorage, OwnableRoles, UUPSUpgradeable {
         $.requests[requestId] = hashRequest(
             requestId,
             msg.sender,
-            beacon.publicKeyHash(),
+            beacon_.publicKeyHash(),
             round,
             callbackGasLimit
         );
@@ -249,8 +245,7 @@ contract Anyrand is AnyrandStorage, OwnableRoles, UUPSUpgradeable {
         uint256 round,
         uint256 callbackGasLimit,
         uint256[2] calldata signature
-    ) external {
-        _assertNoReentrance();
+    ) external nonReentrant {
         MainStorage storage $ = _getMainStorage();
         bytes32 reqHash = hashRequest(
             requestId,
@@ -283,11 +278,13 @@ contract Anyrand is AnyrandStorage, OwnableRoles, UUPSUpgradeable {
             )
         );
 
-        bool didCallbackSucceed = callWithExactGas(
+        bool didCallbackSucceed = Gas.callWithExactGas(
             callbackGasLimit,
             requester,
-            requestId,
-            randomWords
+            abi.encodePacked(
+                IRandomiserCallback.receiveRandomWords.selector,
+                abi.encode(requestId, randomWords)
+            )
         );
         if (!didCallbackSucceed) {
             // Allow the fulfiller to retry this request
@@ -304,35 +301,15 @@ contract Anyrand is AnyrandStorage, OwnableRoles, UUPSUpgradeable {
         emit RandomnessFulfilled(requestId, randomWords, didCallbackSucceed);
     }
 
-    /// @dev Non-reentrant callWithExactGas
-    function callWithExactGas(
-        uint256 callbackGasLimit,
-        address requester,
-        uint256 requestId,
-        uint256[] memory randomWords
-    ) private returns (bool success) {
-        MainStorage storage $ = _getMainStorage();
-        $.reentranceLock = true;
-        success = Gas.callWithExactGas(
-            callbackGasLimit,
-            requester,
-            abi.encodePacked(
-                IRandomiserCallback.receiveRandomWords.selector,
-                abi.encode(requestId, randomWords)
-            )
-        );
-        $.reentranceLock = false;
-    }
-
     /// @notice Set the beacon
     /// @param newBeacon The new beacon
     function _setBeacon(address newBeacon) private {
         // Sanity check
-        IDrandBeacon beacon = IDrandBeacon(newBeacon);
+        IDrandBeacon beacon_ = IDrandBeacon(newBeacon);
         if (
-            beacon.publicKey().length == 0 ||
-            beacon.period() == 0 ||
-            beacon.genesisTimestamp() == 0
+            beacon_.publicKey().length == 0 ||
+            beacon_.period() == 0 ||
+            beacon_.genesisTimestamp() == 0
         ) {
             revert InvalidBeacon(newBeacon);
         }

@@ -10,8 +10,6 @@ import {IAnyrand} from "./interfaces/IAnyrand.sol";
 abstract contract AnyrandStorage is IAnyrand {
     /// @custom:storage-location erc7201:io.frogworks.anyrand.v1.main_storage
     struct MainStorage {
-        /// @notice Reentrance flag
-        bool reentranceLock;
         /// @notice Current beacon
         address beacon;
         /// @notice The base price of entropy
@@ -35,6 +33,10 @@ abstract contract AnyrandStorage is IAnyrand {
             // (keccak256("io.frogworks.anyrand.v1.main_storage") - 1) & ~0xff
             $.slot := 0x73bb1f7ad954352194401771e442b57f02df3da05251c4536bf437f932f99200
         }
+    }
+
+    function beacon() external view returns (address) {
+        return _getMainStorage().beacon;
     }
 
     function baseRequestPrice() external view returns (uint256) {
