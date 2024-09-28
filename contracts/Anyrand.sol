@@ -282,9 +282,10 @@ contract Anyrand is
         randomWords[0] = uint256(
             keccak256(
                 abi.encode(
-                    keccak256(
-                        abi.encode(signature[0], signature[1])
-                    ) /** entropy */,
+                    signature[0] /** entropy */,
+                    signature[1] /** entropy */,
+                    block.chainid /** domain separator */,
+                    address(this) /** salt */,
                     requestId /** salt */,
                     requester /** salt */
                 )

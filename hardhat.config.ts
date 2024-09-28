@@ -33,6 +33,7 @@ const config: HardhatUserConfig = {
             accounts: {
                 count: 10,
             },
+            gasPrice: 1e9,
         },
         scroll: {
             chainId: 534352,

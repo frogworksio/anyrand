@@ -19,7 +19,7 @@ contract GasStationEthereum is IGasStation {
     ) public view virtual override returns (uint256) {
         uint256 rawTxFee = (200_000 + gasLimit) * tx.gasprice;
         // Sprinkle in some fudge in case of volatility
-        uint256 totalGasFee = ((rawTxFee) * FUDGE_FACTOR_BPS) / 10000;
+        uint256 totalGasFee = (rawTxFee * FUDGE_FACTOR_BPS) / 10000;
         return totalGasFee;
     }
 }

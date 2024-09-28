@@ -21,12 +21,23 @@ contract AnyrandConsumer is Ownable, IRandomiserCallback {
 
     /// @notice Request a random number, calling back to this contract
     function getRandom(
-        uint256 secondsToWait,
+        uint256 deadline,
         uint256 callbackGasLimit
     ) external payable {
+        require(deadline > block.timestamp, "Deadline is in the past");
+        uint256 requestPrice = Anyrand(anyrand).getRequestPrice(
+            callbackGasLimit
+        );
+        require(msg.value >= requestPrice, "Insufficient payment");
+        if (msg.value > requestPrice) {
+            (bool success, ) = msg.sender.call{value: msg.value - requestPrice}(
+                ""
+            );
+            require(success, "Refund failed");
+        }
         uint256 requestId = Anyrand(anyrand).requestRandomness{
-            value: msg.value
-        }(block.timestamp + secondsToWait, callbackGasLimit);
+            value: requestPrice
+        }(deadline, callbackGasLimit);
         randomness[requestId] = 1;
     }
 

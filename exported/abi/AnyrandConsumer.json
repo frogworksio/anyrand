@@ -81,7 +81,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "secondsToWait",
+        "name": "deadline",
         "type": "uint256"
       },
       {

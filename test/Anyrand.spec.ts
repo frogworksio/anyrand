@@ -13,10 +13,12 @@ import {
     GasStationEthereum,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { ZeroAddress, parseEther } from 'ethers'
+import { ZeroAddress, keccak256, parseEther, solidityPackedKeccak256 } from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { deployAnyrandStack, G2, getHashedRoundMsg, getRound } from './helpers'
+
+const abi = ethers.AbiCoder.defaultAbiCoder()
 
 describe.only('Anyrand', () => {
     let deployer: SignerWithAddress
@@ -145,21 +147,8 @@ describe.only('Anyrand', () => {
     })
 
     describe('getRequestPrice', () => {
-        it('should return the correct request price', async () => {
-            const baseRequestPrice = await anyrand.baseRequestPrice()
-            const requestPrice0 = await anyrand.getRequestPrice(100_000)
-            const requestPrice1 = await anyrand.getRequestPrice(200_000)
-            expect(requestPrice1 - baseRequestPrice).to.eq((requestPrice0 - baseRequestPrice) * 2n)
-            const requestPrice2 = await anyrand.getRequestPrice(500_000)
-            expect(requestPrice2 - baseRequestPrice).to.eq((requestPrice0 - baseRequestPrice) * 5n)
-        })
-    })
-
-    describe('requestRandomness', () => {
         let maxFeePerGas: bigint
         let maxPriorityFeePerGas: bigint
-        let requestPrice: bigint
-        let callbackGasLimit: bigint
         beforeEach(async () => {
             ;({ maxFeePerGas, maxPriorityFeePerGas } = await ethers.provider
                 .getFeeData()
@@ -167,21 +156,52 @@ describe.only('Anyrand', () => {
                     maxFeePerGas: res.maxFeePerGas!,
                     maxPriorityFeePerGas: res.maxPriorityFeePerGas!,
                 })))
-            callbackGasLimit = 100_000n
-            requestPrice = await anyrand.getRequestPrice(callbackGasLimit, {
+        })
+
+        it('should return the correct request price', async () => {
+            const baseRequestPrice = await anyrand.baseRequestPrice()
+            const requestPrice0 = await anyrand.getRequestPrice(100_000, {
                 maxFeePerGas,
                 maxPriorityFeePerGas,
+            })
+            const requestPrice1 = await anyrand.getRequestPrice(200_000, {
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+            })
+            expect(requestPrice1 - baseRequestPrice).to.be.gt(requestPrice0 - baseRequestPrice)
+            const requestPrice2 = await anyrand.getRequestPrice(500_000, {
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+            })
+            expect(requestPrice2 - baseRequestPrice).be.gt(requestPrice1 - baseRequestPrice)
+        })
+    })
+
+    describe('requestRandomness', () => {
+        // let maxFeePerGas: bigint
+        // let maxPriorityFeePerGas: bigint
+        let gasPrice: bigint
+        let requestPrice: bigint
+        let callbackGasLimit: bigint
+        beforeEach(async () => {
+            ;({ gasPrice } = await ethers.provider.getFeeData().then((res) => ({
+                gasPrice: res.gasPrice!,
+                maxFeePerGas: res.maxFeePerGas!,
+                maxPriorityFeePerGas: res.maxPriorityFeePerGas!,
+            })))
+            callbackGasLimit = 100_000n
+            requestPrice = await anyrand.getRequestPrice(callbackGasLimit, {
+                gasPrice,
             })
         })
 
         it('should request randomness', async () => {
-            const deadline = BigInt((await time.latest()) + 31)
+            const deadline = BigInt(await time.latest()) + 31n
             const requestId = await anyrand.nextRequestId()
             await expect(
                 anyrand.requestRandomness(deadline, callbackGasLimit, {
                     value: requestPrice,
-                    maxFeePerGas,
-                    maxPriorityFeePerGas,
+                    gasPrice,
                 }),
             )
                 .to.emit(anyrand, 'RandomnessRequested')
@@ -198,15 +218,13 @@ describe.only('Anyrand', () => {
             await expect(
                 anyrand.requestRandomness((await time.latest()) + 31, callbackGasLimit, {
                     value: requestPrice / 2n, // not enough
-                    maxFeePerGas,
-                    maxPriorityFeePerGas,
+                    gasPrice,
                 }),
             ).to.be.revertedWithCustomError(anyrand, 'IncorrectPayment')
             await expect(
                 anyrand.requestRandomness((await time.latest()) + 31, callbackGasLimit, {
                     value: requestPrice * 2n, // too much
-                    maxFeePerGas,
-                    maxPriorityFeePerGas,
+                    gasPrice,
                 }),
             ).to.be.revertedWithCustomError(anyrand, 'IncorrectPayment')
         })
@@ -214,26 +232,23 @@ describe.only('Anyrand', () => {
         it('should revert if gas limit too high', async () => {
             const tooHighGasLimit = (await anyrand.maxCallbackGasLimit()) + 1n
             const tooHighRequestPrice = await anyrand.getRequestPrice(tooHighGasLimit, {
-                maxFeePerGas,
-                maxPriorityFeePerGas,
+                gasPrice,
             })
+            const deadline = BigInt(await time.latest()) + 31n
             await expect(
-                anyrand.requestRandomness((await time.latest()) + 31, tooHighGasLimit, {
+                anyrand.requestRandomness(deadline, tooHighGasLimit, {
                     value: tooHighRequestPrice,
-                    maxFeePerGas,
-                    maxPriorityFeePerGas,
+                    gasPrice,
                 }),
             ).to.be.revertedWithCustomError(anyrand, 'OverGasLimit')
         })
 
         it('should revert if deadline too far in the future', async () => {
-            const invalidDeadline =
-                BigInt(await time.latest()) + (await anyrand.maxDeadlineDelta()) + 10n
+            const deadline = BigInt(await time.latest()) + (await anyrand.maxDeadlineDelta()) + 10n
             await expect(
-                anyrand.requestRandomness(invalidDeadline, callbackGasLimit, {
+                anyrand.requestRandomness(deadline, callbackGasLimit, {
                     value: requestPrice,
-                    maxFeePerGas,
-                    maxPriorityFeePerGas,
+                    gasPrice,
                 }),
             ).to.be.revertedWithCustomError(anyrand, 'InvalidDeadline')
         })
@@ -243,8 +258,7 @@ describe.only('Anyrand', () => {
             await expect(
                 anyrand.requestRandomness(invalidDeadline, callbackGasLimit, {
                     value: requestPrice,
-                    maxFeePerGas,
-                    maxPriorityFeePerGas,
+                    gasPrice,
                 }),
             ).to.be.revertedWithCustomError(anyrand, 'InvalidDeadline')
         })
@@ -254,44 +268,33 @@ describe.only('Anyrand', () => {
             await expect(
                 anyrand.requestRandomness(deadline, callbackGasLimit, {
                     value: requestPrice,
-                    maxFeePerGas,
-                    maxPriorityFeePerGas,
+                    gasPrice,
                 }),
             ).to.be.revertedWithCustomError(anyrand, 'InvalidDeadline')
         })
     })
 
     describe('verifyBeaconRound', () => {
-        let maxFeePerGas: bigint
-        let maxPriorityFeePerGas: bigint
+        let gasPrice: bigint
         let requestPrice: bigint
         let callbackGasLimit: bigint
         beforeEach(async () => {
-            ;({ maxFeePerGas, maxPriorityFeePerGas } = await ethers.provider
-                .getFeeData()
-                .then((res) => ({
-                    maxFeePerGas: res.maxFeePerGas!,
-                    maxPriorityFeePerGas: res.maxPriorityFeePerGas!,
-                })))
+            ;({ gasPrice } = await ethers.provider.getFeeData().then((res) => ({
+                gasPrice: res.gasPrice!,
+            })))
             callbackGasLimit = 100_000n
             requestPrice = await anyrand.getRequestPrice(callbackGasLimit, {
-                maxFeePerGas,
-                maxPriorityFeePerGas,
+                gasPrice,
             })
         })
 
         it('should verify a valid signature', async () => {
-            const secondsToWait = 30n
-            await consumer.getRandom(secondsToWait, callbackGasLimit, {
+            const deadline = BigInt(await time.latest()) + 30n
+            await anyrand.requestRandomness(deadline, callbackGasLimit, {
                 value: requestPrice,
-                maxFeePerGas,
-                maxPriorityFeePerGas,
+                gasPrice,
             })
-            const round = getRound(
-                beaconGenesisTimestamp,
-                beaconGenesisTimestamp + secondsToWait,
-                beaconPeriod,
-            )
+            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
             const M = getHashedRoundMsg(round)
             const signature = bn254.signShortSignature(M, beaconSecretKey).toAffine()
             await expect(anyrand.verifyBeaconRound(round, [signature.x, signature.y])).to.not.be
@@ -299,17 +302,12 @@ describe.only('Anyrand', () => {
         })
 
         it('should revert if signature was signed by the wrong key', async () => {
-            const secondsToWait = 30n
-            await consumer.getRandom(secondsToWait, callbackGasLimit, {
+            const deadline = BigInt(await time.latest()) + 30n
+            await anyrand.requestRandomness(deadline, callbackGasLimit, {
                 value: requestPrice,
-                maxFeePerGas,
-                maxPriorityFeePerGas,
+                gasPrice,
             })
-            const round = getRound(
-                beaconGenesisTimestamp,
-                beaconGenesisTimestamp + secondsToWait,
-                beaconPeriod,
-            )
+            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
             const M = getHashedRoundMsg(round)
             const wrongSecretKey = bn254.utils.randomPrivateKey()
             const wrongSignature = bn254.signShortSignature(M, wrongSecretKey).toAffine()
@@ -319,22 +317,86 @@ describe.only('Anyrand', () => {
         })
 
         it('should revert if signature is not a valid G1 point', async () => {
-            const secondsToWait = 30n
-            await consumer.getRandom(secondsToWait, callbackGasLimit, {
+            const deadline = BigInt(await time.latest()) + 30n
+            await anyrand.requestRandomness(deadline, callbackGasLimit, {
                 value: requestPrice,
-                maxFeePerGas,
-                maxPriorityFeePerGas,
+                gasPrice,
             })
-            const round = getRound(
-                beaconGenesisTimestamp,
-                beaconGenesisTimestamp + secondsToWait,
-                beaconPeriod,
-            )
+            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
             // Valid G1 points are simply (x,y) satisfying y^2 = x^3 + 3 \forall x,y \in F_r
             const invalidSignature: [bigint, bigint] = [2n, 2n]
             await expect(
                 anyrand.verifyBeaconRound(round, invalidSignature),
             ).to.be.revertedWithCustomError(anyrand, 'InvalidSignature')
+        })
+    })
+
+    describe('fulfillRandomness', () => {
+        let gasPrice: bigint
+        let requestPrice: bigint
+        let callbackGasLimit: bigint
+        beforeEach(async () => {
+            ;({ gasPrice } = await ethers.provider.getFeeData().then((res) => ({
+                gasPrice: res.gasPrice!,
+            })))
+            callbackGasLimit = 100_000n
+            requestPrice = await anyrand.getRequestPrice(callbackGasLimit, {
+                gasPrice,
+            })
+        })
+
+        it('should fulfill valid randomness request', async () => {
+            const deadline = BigInt(await time.latest()) + 30n
+            const requestId = await anyrand.nextRequestId()
+            const requester = await consumer.getAddress()
+            const pubKeyHash = await drandBeacon.publicKeyHash()
+            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
+            const M = getHashedRoundMsg(round)
+            const signature = bn254.signShortSignature(M, beaconSecretKey).toAffine()
+
+            // Request
+            await expect(
+                consumer.getRandom(deadline, callbackGasLimit, {
+                    value: requestPrice,
+                    gasPrice,
+                }),
+            )
+                .to.emit(anyrand, 'RandomnessRequested')
+                .withArgs(
+                    requestId,
+                    await consumer.getAddress(),
+                    round,
+                    callbackGasLimit,
+                    requestPrice,
+                )
+
+            // Fulfill
+            const chainId = await ethers.provider.getNetwork().then((network) => network.chainId)
+            const randomness = keccak256(
+                abi.encode(
+                    ['uint256', 'uint256', 'uint256', 'address', 'uint256', 'address'],
+                    [
+                        signature.x,
+                        signature.y,
+                        chainId,
+                        await anyrand.getAddress(),
+                        requestId,
+                        requester,
+                    ],
+                ),
+            )
+            await expect(
+                anyrand.fulfillRandomness(
+                    requestId,
+                    requester,
+                    pubKeyHash,
+                    round,
+                    callbackGasLimit,
+                    [signature.x, signature.y],
+                ),
+            )
+                .to.emit(anyrand, 'RandomnessFulfilled')
+                .withArgs(requestId, [randomness], true)
         })
     })
 })

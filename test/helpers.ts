@@ -1,7 +1,6 @@
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import {
     Anyrand,
-    Anyrand__factory,
     AnyrandHarness__factory,
     DrandBeacon,
     DrandBeacon__factory,
@@ -71,6 +70,7 @@ export async function deployAnyrandStack(config: AnyrandStackConfig) {
         await anyrandProxy.getAddress(),
         config.deployer,
     )
+
     return {
         anyrand,
         anyrandImpl,
