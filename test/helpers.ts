@@ -2,15 +2,20 @@ import { bn254 } from '@kevincharm/noble-bn254-drand'
 import {
     Anyrand,
     Anyrand__factory,
+    AnyrandHarness__factory,
     DrandBeacon,
     DrandBeacon__factory,
     ERC1967Proxy__factory,
     GasStationEthereum__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { parseEther } from 'ethers'
+import { getBytes, keccak256, parseEther } from 'ethers'
 
-interface AnyrandStackConfig {
+export type G1 = typeof bn254.G1.ProjectivePoint.BASE
+export type G2 = typeof bn254.G2.ProjectivePoint.BASE
+export const DRAND_EVMNET_DST = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_'
+
+export interface AnyrandStackConfig {
     deployer: SignerWithAddress
     beacon?:
         | `0x${string}`
@@ -57,12 +62,15 @@ export async function deployAnyrandStack(config: AnyrandStackConfig) {
         config.maxDeadlineDelta || 1800,
         await gasStation.getAddress(),
     ]
-    const anyrandImpl = await new Anyrand__factory(config.deployer).deploy()
+    const anyrandImpl = await new AnyrandHarness__factory(config.deployer).deploy()
     const anyrandProxy = await new ERC1967Proxy__factory(config.deployer).deploy(
         await anyrandImpl.getAddress(),
         anyrandImpl.interface.encodeFunctionData('init', anyrandArgs as any),
     )
-    const anyrand = Anyrand__factory.connect(await anyrandProxy.getAddress(), config.deployer)
+    const anyrand = AnyrandHarness__factory.connect(
+        await anyrandProxy.getAddress(),
+        config.deployer,
+    )
     return {
         anyrand,
         anyrandImpl,
@@ -76,4 +84,12 @@ export function getRound(genesis: bigint, deadline: bigint, period: bigint) {
     const delta = deadline - genesis
     const round = delta / period + (delta % period)
     return round
+}
+
+export function getHashedRoundMsg(round: bigint, DST?: string | Uint8Array) {
+    const roundBytes = getBytes('0x' + round.toString(16).padStart(16, '0'))
+    const M = bn254.G1.hashToCurve(getBytes(keccak256(roundBytes) as `0x${string}`), {
+        DST: DST || DRAND_EVMNET_DST,
+    }) as G1
+    return M
 }

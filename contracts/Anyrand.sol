@@ -88,7 +88,7 @@ contract Anyrand is
     /// @param pubKeyHash hash of the beacon's public key
     /// @param round Target round of the drand beacon.
     /// @param callbackGasLimit Gas limit for callback
-    function hashRequest(
+    function _hashRequest(
         uint256 requestId,
         address requester,
         bytes32 pubKeyHash,
@@ -170,7 +170,7 @@ contract Anyrand is
         uint64 round = uint64((delta / period) + (delta % period));
 
         uint256 requestId = $.nextRequestId++;
-        $.requests[requestId] = hashRequest(
+        $.requests[requestId] = _hashRequest(
             requestId,
             msg.sender,
             beacon_.publicKeyHash(),
@@ -210,7 +210,7 @@ contract Anyrand is
     function _verifyBeaconRound(
         uint256 round,
         uint256[2] calldata signature
-    ) private view {
+    ) internal view {
         // Encode round for hash-to-point
         bytes memory hashedRoundBytes = new bytes(32);
         assembly {
@@ -222,17 +222,29 @@ contract Anyrand is
         uint256[4] memory pubKey = _deserialisePublicKey();
         uint256[2] memory message = BLS.hashToPoint(DST, hashedRoundBytes);
         bool isValidSignature = BLS.isValidSignature(signature);
+        if (!isValidSignature) {
+            revert InvalidSignature(pubKey, message, signature);
+        }
+
         (bool pairingSuccess, bool callSuccess) = BLS.verifySingle(
             signature,
             pubKey,
             message
         );
-        if (!isValidSignature || !pairingSuccess || !callSuccess) {
+        // From EIP-197: If the length of the input is incorrect or any of the
+        // inputs are not elements of the respective group or are not encoded
+        // correctly, the call fails.
+        // Ergo, this must never revert. Otherwise we have a bug.
+        assert(callSuccess);
+        if (!pairingSuccess) {
             revert InvalidSignature(pubKey, message, signature);
         }
     }
 
-    /// @notice Fulfill a randomness request (for beacon keepers)
+    /// @notice Fulfill a randomness request (for beacon keepers).
+    /// @notice Note that fulfilment only depends on the validity of the BLS
+    ///     signature over the expected beacon round, and DOES NOT check
+    ///     the block timestamp against that round.
     /// @param requestId Which request id to fulfill
     /// @param requester Address of account that initiated the request.
     /// @param round Target round of the drand beacon.
@@ -248,7 +260,7 @@ contract Anyrand is
         uint256[2] calldata signature
     ) external nonReentrant {
         MainStorage storage $ = _getMainStorage();
-        bytes32 reqHash = hashRequest(
+        bytes32 reqHash = _hashRequest(
             requestId,
             requester,
             pubKeyHash,
@@ -304,7 +316,7 @@ contract Anyrand is
 
     /// @notice Set the beacon
     /// @param newBeacon The new beacon
-    function _setBeacon(address newBeacon) private {
+    function _setBeacon(address newBeacon) internal {
         // Sanity check
         IDrandBeacon beacon_ = IDrandBeacon(newBeacon);
         if (

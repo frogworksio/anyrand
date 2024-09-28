@@ -4,38 +4,25 @@ import {
     Anyrand,
     AnyrandConsumer,
     AnyrandConsumer__factory,
+    AnyrandHarness,
+    AnyrandHarness__factory,
     Anyrand__factory,
     DrandBeacon,
-    DrandBeacon__factory,
     Dummy__factory,
     ERC1967Proxy__factory,
     GasStationEthereum,
-    GasStationOptimism__factory,
-    MockGasPriceOracle__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import {
-    Wallet,
-    ZeroAddress,
-    formatEther,
-    formatUnits,
-    getBytes,
-    keccak256,
-    parseEther,
-} from 'ethers'
+import { ZeroAddress, parseEther } from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
-import { deployAnyrandStack, getRound } from './helpers'
-
-type G1 = typeof bn254.G1.ProjectivePoint.BASE
-type G2 = typeof bn254.G2.ProjectivePoint.BASE
-const DST = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_'
+import { deployAnyrandStack, G2, getHashedRoundMsg, getRound } from './helpers'
 
 describe.only('Anyrand', () => {
     let deployer: SignerWithAddress
     let bob: SignerWithAddress
-    let anyrandImpl: Anyrand
-    let anyrand: Anyrand
+    let anyrandImpl: AnyrandHarness
+    let anyrand: AnyrandHarness
     let anyrandArgs: Parameters<Anyrand['init']>
     let drandBeacon: DrandBeacon
     let consumer: AnyrandConsumer
@@ -69,7 +56,7 @@ describe.only('Anyrand', () => {
                 anyrandImpl.getAddress(),
                 '0x',
             )
-            anyrand = Anyrand__factory.connect(await proxy.getAddress(), deployer)
+            anyrand = AnyrandHarness__factory.connect(await proxy.getAddress(), deployer)
         })
 
         it('should initialise once', async () => {
@@ -271,6 +258,83 @@ describe.only('Anyrand', () => {
                     maxPriorityFeePerGas,
                 }),
             ).to.be.revertedWithCustomError(anyrand, 'InvalidDeadline')
+        })
+    })
+
+    describe('verifyBeaconRound', () => {
+        let maxFeePerGas: bigint
+        let maxPriorityFeePerGas: bigint
+        let requestPrice: bigint
+        let callbackGasLimit: bigint
+        beforeEach(async () => {
+            ;({ maxFeePerGas, maxPriorityFeePerGas } = await ethers.provider
+                .getFeeData()
+                .then((res) => ({
+                    maxFeePerGas: res.maxFeePerGas!,
+                    maxPriorityFeePerGas: res.maxPriorityFeePerGas!,
+                })))
+            callbackGasLimit = 100_000n
+            requestPrice = await anyrand.getRequestPrice(callbackGasLimit, {
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+            })
+        })
+
+        it('should verify a valid signature', async () => {
+            const secondsToWait = 30n
+            await consumer.getRandom(secondsToWait, callbackGasLimit, {
+                value: requestPrice,
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+            })
+            const round = getRound(
+                beaconGenesisTimestamp,
+                beaconGenesisTimestamp + secondsToWait,
+                beaconPeriod,
+            )
+            const M = getHashedRoundMsg(round)
+            const signature = bn254.signShortSignature(M, beaconSecretKey).toAffine()
+            await expect(anyrand.verifyBeaconRound(round, [signature.x, signature.y])).to.not.be
+                .reverted
+        })
+
+        it('should revert if signature was signed by the wrong key', async () => {
+            const secondsToWait = 30n
+            await consumer.getRandom(secondsToWait, callbackGasLimit, {
+                value: requestPrice,
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+            })
+            const round = getRound(
+                beaconGenesisTimestamp,
+                beaconGenesisTimestamp + secondsToWait,
+                beaconPeriod,
+            )
+            const M = getHashedRoundMsg(round)
+            const wrongSecretKey = bn254.utils.randomPrivateKey()
+            const wrongSignature = bn254.signShortSignature(M, wrongSecretKey).toAffine()
+            await expect(
+                anyrand.verifyBeaconRound(round, [wrongSignature.x, wrongSignature.y]),
+            ).to.be.revertedWithCustomError(anyrand, 'InvalidSignature')
+        })
+
+        it('should revert if signature is not a valid G1 point', async () => {
+            const secondsToWait = 30n
+            await consumer.getRandom(secondsToWait, callbackGasLimit, {
+                value: requestPrice,
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+            })
+            const round = getRound(
+                beaconGenesisTimestamp,
+                beaconGenesisTimestamp + secondsToWait,
+                beaconPeriod,
+            )
+            // Valid G1 points are simply (x,y) satisfying y^2 = x^3 + 3 \forall x,y \in F_r
+            const invalidSignature: [bigint, bigint] = [2n, 2n]
+            await expect(
+                anyrand.verifyBeaconRound(round, invalidSignature),
+            ).to.be.revertedWithCustomError(anyrand, 'InvalidSignature')
         })
     })
 })
