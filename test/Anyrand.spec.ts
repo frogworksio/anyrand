@@ -11,9 +11,10 @@ import {
     ERC1967Proxy__factory,
     GasStationEthereum,
     ReentrantFulfiler__factory,
+    RevertingCallback__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { ZeroAddress, keccak256, parseEther } from 'ethers'
+import { Wallet, ZeroAddress, keccak256, parseEther, randomBytes } from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { deployAnyrandStack, G2, getHashedRoundMsg, getRound } from './helpers'
@@ -422,7 +423,130 @@ describe.only('Anyrand', () => {
                     callbackGasLimit,
                     [signature.x, signature.y],
                 ),
-            ).to.be.reverted // hh bug? nonReentrant reverts without a reason
+            )
+                .to.emit(anyrand, 'RandomnessCallbackFailed')
+                .withArgs(
+                    requestId,
+                    /** ReentrancyGuardReentrantCall() */
+                    '0x3ee5aeb500000000000000000000000000000000000000000000000000000000',
+                )
+        })
+
+        it('should revert if request hash is invalid', async () => {
+            const deadline = BigInt(await time.latest()) + 30n
+            const requestId = await anyrand.nextRequestId()
+            const requester = await consumer.getAddress()
+            const pubKeyHash = await drandBeacon.publicKeyHash()
+            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
+            const M = getHashedRoundMsg(round)
+            const signature = bn254.signShortSignature(M, beaconSecretKey).toAffine()
+
+            // Request
+            await expect(
+                consumer.getRandom(deadline, callbackGasLimit, {
+                    value: requestPrice,
+                    gasPrice,
+                }),
+            )
+                .to.emit(anyrand, 'RandomnessRequested')
+                .withArgs(
+                    requestId,
+                    await consumer.getAddress(),
+                    round,
+                    callbackGasLimit,
+                    requestPrice,
+                )
+
+            // Fulfill with request details that hash to something unexpected
+            await expect(
+                anyrand.fulfillRandomness(
+                    requestId,
+                    Wallet.createRandom().address /** wrong requester */,
+                    pubKeyHash,
+                    round,
+                    callbackGasLimit,
+                    [signature.x, signature.y],
+                ),
+            ).to.be.revertedWithCustomError(anyrand, 'InvalidRequestHash')
+
+            await expect(
+                anyrand.fulfillRandomness(
+                    requestId,
+                    requester,
+                    randomBytes(32) /** wrong pubKeyHash */,
+                    round,
+                    callbackGasLimit,
+                    [signature.x, signature.y],
+                ),
+            ).to.be.revertedWithCustomError(anyrand, 'InvalidRequestHash')
+
+            await expect(
+                anyrand.fulfillRandomness(
+                    requestId,
+                    requester,
+                    pubKeyHash,
+                    round + 1n /** wrong round */,
+                    callbackGasLimit,
+                    [signature.x, signature.y],
+                ),
+            ).to.be.revertedWithCustomError(anyrand, 'InvalidRequestHash')
+
+            await expect(
+                anyrand.fulfillRandomness(
+                    requestId,
+                    requester,
+                    pubKeyHash,
+                    round,
+                    callbackGasLimit + 1n /** wrong gas limit */,
+                    [signature.x, signature.y],
+                ),
+            ).to.be.revertedWithCustomError(anyrand, 'InvalidRequestHash')
+        })
+
+        it('should not revert if callback fails', async () => {
+            const deadline = BigInt(await time.latest()) + 30n
+            const requestId = await anyrand.nextRequestId()
+            const requester = await new RevertingCallback__factory(deployer).deploy(
+                await anyrand.getAddress(),
+            )
+            const pubKeyHash = await drandBeacon.publicKeyHash()
+            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
+            const M = getHashedRoundMsg(round)
+            const signature = bn254.signShortSignature(M, beaconSecretKey).toAffine()
+
+            // Request
+            await expect(
+                requester.getRandom(deadline, callbackGasLimit, {
+                    value: requestPrice,
+                    gasPrice,
+                }),
+            )
+                .to.emit(anyrand, 'RandomnessRequested')
+                .withArgs(
+                    requestId,
+                    await requester.getAddress(),
+                    round,
+                    callbackGasLimit,
+                    requestPrice,
+                )
+
+            // Fulfill
+            await expect(
+                anyrand.fulfillRandomness(
+                    requestId,
+                    await requester.getAddress(),
+                    pubKeyHash,
+                    round,
+                    callbackGasLimit,
+                    [signature.x, signature.y],
+                ),
+            )
+                .to.emit(anyrand, 'RandomnessCallbackFailed')
+                .withArgs(
+                    requestId,
+                    /** AlwaysBeErroring() */
+                    '0x3166292600000000000000000000000000000000000000000000000000000000',
+                )
         })
     })
 })

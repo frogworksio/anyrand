@@ -5,8 +5,8 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IRandomiserCallback} from "../interfaces/IRandomiserCallback.sol";
 import {Anyrand} from "../Anyrand.sol";
 
-/// @title AnyrandConsumer
-contract AnyrandConsumer is Ownable, IRandomiserCallback {
+/// @title RevertingCallback
+contract RevertingCallback is Ownable, IRandomiserCallback {
     /// @notice Anyrand instance
     address public immutable anyrand;
     /// @notice Recorded randomness. A special value of 1 means the request is
@@ -14,6 +14,7 @@ contract AnyrandConsumer is Ownable, IRandomiserCallback {
     mapping(uint256 requestId => uint256) public randomness;
 
     event RandomnessReceived(uint256 randomness);
+    error AlwaysBeErroring();
 
     constructor(address anyrand_) Ownable(msg.sender) {
         anyrand = anyrand_;
@@ -42,12 +43,7 @@ contract AnyrandConsumer is Ownable, IRandomiserCallback {
     }
 
     /// @notice See {IRandomiserCallback-receiveRandomWords}
-    function receiveRandomWords(
-        uint256 requestId,
-        uint256[] calldata randomWords
-    ) external {
-        require(msg.sender == anyrand, "Only callable by Anyrand");
-        require(randomness[requestId] == 1, "Unknown requestId");
-        randomness[requestId] = randomWords[0];
+    function receiveRandomWords(uint256, uint256[] calldata) external {
+        revert AlwaysBeErroring();
     }
 }

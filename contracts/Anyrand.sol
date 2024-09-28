@@ -305,9 +305,20 @@ contract Anyrand is
             $.requests[requestId] = reqHash;
             bytes32 retdata;
             assembly {
+                function min(a, b) -> c {
+                    switch lt(a, b)
+                    case 1 {
+                        c := a
+                    }
+                    default {
+                        c := b
+                    }
+                }
+
                 mstore(0, 0)
                 // Copy a maximum of 32B from returndata, to ease debugging
-                returndatacopy(0, 0, 32)
+                let r := returndatasize()
+                returndatacopy(0, 0, min(r, 32))
                 retdata := mload(0)
             }
             emit RandomnessCallbackFailed(requestId, retdata);
