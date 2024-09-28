@@ -9,6 +9,10 @@ import {IDrandBeacon} from "../interfaces/IDrandBeacon.sol";
 /// @author Kevin Charm <kevin@frogworks.io>
 /// @notice Contract containing immutable information about a drand beacon.
 contract DrandBeacon is IDrandBeacon {
+    /// @notice Domain separation tag
+    bytes public constant DST =
+        bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_");
+
     /**
      * ---------------------+-------+
      * var                  |  size |
@@ -30,6 +34,11 @@ contract DrandBeacon is IDrandBeacon {
 
     error InvalidPublicKey(uint256[4] pubKey);
     error InvalidBeaconConfiguration(uint256 genesisTimestamp, uint256 period);
+    error InvalidSignature(
+        uint256[4] pubKey,
+        uint256[2] message,
+        uint256[2] signature
+    );
 
     constructor(
         uint256[4] memory publicKey_,
@@ -91,5 +100,54 @@ contract DrandBeacon is IDrandBeacon {
                 SSTORE2.read(data, PTR_PERIOD, PTR_PERIOD + LEN_PERIOD),
                 (uint256)
             );
+    }
+
+    /// @notice Deserialise the public key from raw bytes for ecpairing
+    function _deserialisePublicKey() private view returns (uint256[4] memory) {
+        (
+            uint256 pubKey0,
+            uint256 pubKey1,
+            uint256 pubKey2,
+            uint256 pubKey3
+        ) = abi.decode(publicKey(), (uint256, uint256, uint256, uint256));
+        return [pubKey0, pubKey1, pubKey2, pubKey3];
+    }
+
+    /// @notice Verify the signature produced by a drand beacon round against
+    ///     the known public key. Reverts if the signature is invalid.
+    /// @param round The beacon round to verify
+    /// @param signature The signature to verify
+    function verifyBeaconRound(
+        uint256 round,
+        uint256[2] memory signature
+    ) external view {
+        // Encode round for hash-to-point
+        bytes memory hashedRoundBytes = new bytes(32);
+        assembly {
+            mstore(0x00, round)
+            let hashedRound := keccak256(0x18, 0x08) // hash the last 8 bytes (uint64) of `round`
+            mstore(add(0x20, hashedRoundBytes), hashedRound)
+        }
+
+        uint256[4] memory pubKey = _deserialisePublicKey();
+        uint256[2] memory message = BLS.hashToPoint(DST, hashedRoundBytes);
+        bool isValidSignature = BLS.isValidSignature(signature);
+        if (!isValidSignature) {
+            revert InvalidSignature(pubKey, message, signature);
+        }
+
+        (bool pairingSuccess, bool callSuccess) = BLS.verifySingle(
+            signature,
+            pubKey,
+            message
+        );
+        // From EIP-197: If the length of the input is incorrect or any of the
+        // inputs are not elements of the respective group or are not encoded
+        // correctly, the call fails.
+        // Ergo, this must never revert. Otherwise we have a bug.
+        assert(callSuccess);
+        if (!pairingSuccess) {
+            revert InvalidSignature(pubKey, message, signature);
+        }
     }
 }

@@ -4,7 +4,6 @@ pragma solidity 0.8.23;
 import {OwnableRoles} from "solady/src/auth/OwnableRoles.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {BLS} from "@kevincharm/bls-bn254/contracts/BLS.sol";
 import {Gas} from "./lib/Gas.sol";
 import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
 import {AnyrandStorage} from "./AnyrandStorage.sol";
@@ -21,10 +20,6 @@ contract Anyrand is
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    /// @notice Domain separation tag
-    bytes public constant DST =
-        bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_");
-
     /// @notice Role to upgrade the contract
     uint256 public constant UPGRADER_ROLE = _ROLE_0;
     /// @notice Role to do accounting stuff e.g. withdraw ETH
@@ -189,58 +184,6 @@ contract Anyrand is
         return requestId;
     }
 
-    /// @notice Deserialise the public key from raw bytes for ecpairing
-    function _deserialisePublicKey() private view returns (uint256[4] memory) {
-        (
-            uint256 pubKey0,
-            uint256 pubKey1,
-            uint256 pubKey2,
-            uint256 pubKey3
-        ) = abi.decode(
-                IDrandBeacon(_getMainStorage().beacon).publicKey(),
-                (uint256, uint256, uint256, uint256)
-            );
-        return [pubKey0, pubKey1, pubKey2, pubKey3];
-    }
-
-    /// @notice Verify the signature produced by a drand beacon round against
-    ///     the known public key. Reverts if the signature is invalid.
-    /// @param round The beacon round to verify
-    /// @param signature The beacon signature
-    function _verifyBeaconRound(
-        uint256 round,
-        uint256[2] memory signature
-    ) internal view {
-        // Encode round for hash-to-point
-        bytes memory hashedRoundBytes = new bytes(32);
-        assembly {
-            mstore(0x00, round)
-            let hashedRound := keccak256(0x18, 0x08) // hash the last 8 bytes (uint64) of `round`
-            mstore(add(0x20, hashedRoundBytes), hashedRound)
-        }
-
-        uint256[4] memory pubKey = _deserialisePublicKey();
-        uint256[2] memory message = BLS.hashToPoint(DST, hashedRoundBytes);
-        bool isValidSignature = BLS.isValidSignature(signature);
-        if (!isValidSignature) {
-            revert InvalidSignature(pubKey, message, signature);
-        }
-
-        (bool pairingSuccess, bool callSuccess) = BLS.verifySingle(
-            signature,
-            pubKey,
-            message
-        );
-        // From EIP-197: If the length of the input is incorrect or any of the
-        // inputs are not elements of the respective group or are not encoded
-        // correctly, the call fails.
-        // Ergo, this must never revert. Otherwise we have a bug.
-        assert(callSuccess);
-        if (!pairingSuccess) {
-            revert InvalidSignature(pubKey, message, signature);
-        }
-    }
-
     /// @notice Fulfill a randomness request (for beacon keepers).
     /// @notice Note that fulfilment only depends on the validity of the BLS
     ///     signature over the expected beacon round, and DOES NOT check
@@ -275,7 +218,7 @@ contract Anyrand is
         $.requests[requestId] = bytes32(0);
 
         // Beacon verification
-        _verifyBeaconRound(round, signature);
+        IDrandBeacon($.beacon).verifyBeaconRound(round, signature);
 
         // Derive randomness from the signature
         uint256[] memory randomWords = new uint256[](1);

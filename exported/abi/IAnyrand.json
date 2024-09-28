@@ -56,38 +56,12 @@
   {
     "inputs": [
       {
-        "internalType": "uint256[4]",
-        "name": "pubKey",
-        "type": "uint256[4]"
-      },
-      {
-        "internalType": "uint256[2]",
-        "name": "message",
-        "type": "uint256[2]"
-      },
-      {
-        "internalType": "uint256[2]",
-        "name": "signature",
-        "type": "uint256[2]"
-      }
-    ],
-    "name": "InvalidSignature",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "uint256",
         "name": "callbackGasLimit",
         "type": "uint256"
       }
     ],
     "name": "OverGasLimit",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "Reentrant",
     "type": "error"
   },
   {
@@ -264,19 +238,6 @@
     ],
     "name": "RequestPriceUpdated",
     "type": "event"
-  },
-  {
-    "inputs": [],
-    "name": "DST",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
   },
   {
     "inputs": [

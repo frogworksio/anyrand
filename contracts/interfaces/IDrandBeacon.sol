@@ -16,4 +16,13 @@ interface IDrandBeacon {
 
     /// @notice Get the period of the beacon
     function period() external view returns (uint256);
+
+    /// @notice Verify the signature produced by a drand beacon round against
+    ///     the known public key. Should revert if the signature is invalid.
+    /// @param round The beacon round to verify
+    /// @param signature The signature to verify
+    function verifyBeaconRound(
+        uint256 round,
+        uint256[2] memory signature
+    ) external;
 }

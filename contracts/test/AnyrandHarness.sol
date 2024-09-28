@@ -21,13 +21,6 @@ contract AnyrandHarness is Anyrand {
             );
     }
 
-    function verifyBeaconRound(
-        uint256 round,
-        uint256[2] calldata signature
-    ) public view {
-        _verifyBeaconRound(round, signature);
-    }
-
     function setRequest(
         uint256 requestId,
         address requester,

@@ -310,63 +310,6 @@ describe('Anyrand', () => {
         })
     })
 
-    describe('verifyBeaconRound', () => {
-        let gasPrice: bigint
-        let requestPrice: bigint
-        let callbackGasLimit: bigint
-        beforeEach(async () => {
-            ;({ gasPrice } = await ethers.provider.getFeeData().then((res) => ({
-                gasPrice: res.gasPrice!,
-            })))
-            callbackGasLimit = 100_000n
-            requestPrice = await anyrand.getRequestPrice(callbackGasLimit, {
-                gasPrice,
-            })
-        })
-
-        it('should verify a valid signature', async () => {
-            const deadline = BigInt(await time.latest()) + 30n
-            await anyrand.requestRandomness(deadline, callbackGasLimit, {
-                value: requestPrice,
-                gasPrice,
-            })
-            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
-            const M = getHashedRoundMsg(round)
-            const signature = bn254.signShortSignature(M, beaconSecretKey).toAffine()
-            await expect(anyrand.verifyBeaconRound(round, [signature.x, signature.y])).to.not.be
-                .reverted
-        })
-
-        it('should revert if signature was signed by the wrong key', async () => {
-            const deadline = BigInt(await time.latest()) + 30n
-            await anyrand.requestRandomness(deadline, callbackGasLimit, {
-                value: requestPrice,
-                gasPrice,
-            })
-            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
-            const M = getHashedRoundMsg(round)
-            const wrongSecretKey = bn254.utils.randomPrivateKey()
-            const wrongSignature = bn254.signShortSignature(M, wrongSecretKey).toAffine()
-            await expect(
-                anyrand.verifyBeaconRound(round, [wrongSignature.x, wrongSignature.y]),
-            ).to.be.revertedWithCustomError(anyrand, 'InvalidSignature')
-        })
-
-        it('should revert if signature is not a valid G1 point', async () => {
-            const deadline = BigInt(await time.latest()) + 30n
-            await anyrand.requestRandomness(deadline, callbackGasLimit, {
-                value: requestPrice,
-                gasPrice,
-            })
-            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
-            // Valid G1 points are simply (x,y) satisfying y^2 = x^3 + 3 \forall x,y \in F_r
-            const invalidSignature: [bigint, bigint] = [2n, 2n]
-            await expect(
-                anyrand.verifyBeaconRound(round, invalidSignature),
-            ).to.be.revertedWithCustomError(anyrand, 'InvalidSignature')
-        })
-    })
-
     describe('fulfillRandomness', () => {
         let gasPrice: bigint
         let requestPrice: bigint

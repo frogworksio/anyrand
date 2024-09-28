@@ -23,17 +23,6 @@
   {
     "inputs": [
       {
-        "internalType": "uint256[4]",
-        "name": "input",
-        "type": "uint256[4]"
-      }
-    ],
-    "name": "BNAddFailed",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "address",
         "name": "implementation",
         "type": "address"
@@ -87,34 +76,12 @@
   {
     "inputs": [
       {
-        "internalType": "bytes",
-        "name": "dst",
-        "type": "bytes"
-      }
-    ],
-    "name": "InvalidDSTLength",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "uint256",
         "name": "deadline",
         "type": "uint256"
       }
     ],
     "name": "InvalidDeadline",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "x",
-        "type": "uint256"
-      }
-    ],
-    "name": "InvalidFieldElement",
     "type": "error"
   },
   {
@@ -131,59 +98,6 @@
       }
     ],
     "name": "InvalidRequestHash",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256[4]",
-        "name": "pubKey",
-        "type": "uint256[4]"
-      },
-      {
-        "internalType": "uint256[2]",
-        "name": "message",
-        "type": "uint256[2]"
-      },
-      {
-        "internalType": "uint256[2]",
-        "name": "signature",
-        "type": "uint256[2]"
-      }
-    ],
-    "name": "InvalidSignature",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "noSqrt",
-        "type": "uint256"
-      }
-    ],
-    "name": "MapToPointFailed",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "base",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "exponent",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "modulus",
-        "type": "uint256"
-      }
-    ],
-    "name": "ModExpFailed",
     "type": "error"
   },
   {
@@ -215,11 +129,6 @@
   {
     "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "Reentrant",
     "type": "error"
   },
   {
@@ -542,19 +451,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "DST",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
       }
     ],
     "stateMutability": "view",

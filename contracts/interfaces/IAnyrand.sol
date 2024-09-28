@@ -28,18 +28,9 @@ interface IAnyrand is ITypeAndVersion {
     error IncorrectPayment(uint256 got, uint256 want);
     error OverGasLimit(uint256 callbackGasLimit);
     error InvalidRequestHash(bytes32 requestHash);
-    error InvalidSignature(
-        uint256[4] pubKey,
-        uint256[2] message,
-        uint256[2] signature
-    );
     error InvalidDeadline(uint256 deadline);
     error InsufficientGas();
-    error Reentrant();
     error InvalidBeacon(address beacon);
-
-    /// @notice Domain separation tag conforming to RFC9380
-    function DST() external view returns (bytes memory);
 
     /// @notice Compute the total request price
     /// @param callbackGasLimit The callback gas limit that will be used for

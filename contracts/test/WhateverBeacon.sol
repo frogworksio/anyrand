@@ -37,4 +37,8 @@ contract WhateverBeacon is IDrandBeacon {
     function period() external view returns (uint256) {
         return _period;
     }
+
+    function verifyBeaconRound(uint256, uint256[2] calldata) external pure {
+        revert("Not implemented");
+    }
 }
