@@ -305,6 +305,7 @@ contract Anyrand is
             $.requests[requestId] = reqHash;
             bytes32 retdata;
             assembly {
+                mstore(0, 0)
                 // Copy a maximum of 32B from returndata, to ease debugging
                 returndatacopy(0, 0, 32)
                 retdata := mload(0)
