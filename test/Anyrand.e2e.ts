@@ -6,10 +6,8 @@ import {
     AnyrandConsumer__factory,
     Anyrand__factory,
     DrandBeacon,
-    DrandBeacon__factory,
     ERC1967Proxy__factory,
     GasStationEthereum,
-    GasStationEthereum__factory,
     GasStationOptimism__factory,
     MockGasPriceOracle__factory,
 } from '../typechain-types'
@@ -23,7 +21,7 @@ type G1 = typeof bn254.G1.ProjectivePoint.BASE
 type G2 = typeof bn254.G2.ProjectivePoint.BASE
 const DST = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_'
 
-describe('Anyrand', () => {
+describe('Anyrand e2e', () => {
     let deployer: SignerWithAddress
     let bob: SignerWithAddress
     let anyrandImpl: Anyrand
@@ -63,8 +61,9 @@ describe('Anyrand', () => {
             gasPrice,
         })
         console.log(`Request price:\t${formatEther(requestPrice)} ETH`)
+        const deadline = BigInt(await time.latest()) + 10n
         const getRandomTx = await consumer
-            .getRandom(10, callbackGasLimit, {
+            .getRandom(deadline, callbackGasLimit, {
                 value: requestPrice,
                 gasPrice,
             })
