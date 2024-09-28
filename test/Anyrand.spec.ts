@@ -7,11 +7,15 @@ import {
     AnyrandHarness,
     AnyrandHarness__factory,
     DrandBeacon,
+    DrandBeacon__factory,
     Dummy__factory,
     ERC1967Proxy__factory,
     GasStationEthereum,
+    GasStationEthereum__factory,
     ReentrantFulfiler__factory,
+    ReentrantRequester__factory,
     RevertingCallback__factory,
+    WhateverBeacon__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 import { Wallet, ZeroAddress, keccak256, parseEther, randomBytes } from 'ethers'
@@ -21,7 +25,7 @@ import { deployAnyrandStack, G2, getHashedRoundMsg, getRound } from './helpers'
 
 const abi = ethers.AbiCoder.defaultAbiCoder()
 
-describe.only('Anyrand', () => {
+describe('Anyrand', () => {
     let deployer: SignerWithAddress
     let bob: SignerWithAddress
     let anyrandImpl: AnyrandHarness
@@ -272,6 +276,37 @@ describe.only('Anyrand', () => {
                     gasPrice,
                 }),
             ).to.be.revertedWithCustomError(anyrand, 'InvalidDeadline')
+        })
+
+        it('should revert if requestRandomness is called reentrantly', async () => {
+            const reentrantRequester = await new ReentrantRequester__factory(deployer).deploy(
+                await anyrand.getAddress(),
+            )
+            await setBalance(await reentrantRequester.getAddress(), parseEther('10'))
+            const deadline = BigInt(await time.latest()) + 30n
+            const callbackGasLimit = 500_000n
+            const requestId = await anyrand.nextRequestId()
+            await reentrantRequester.getRandom(deadline, callbackGasLimit)
+
+            const pubKeyHash = await drandBeacon.publicKeyHash()
+            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
+            const M = getHashedRoundMsg(round)
+            const signature = bn254.signShortSignature(M, beaconSecretKey).toAffine()
+            await expect(
+                reentrantRequester.fulfillRandomness(
+                    requestId,
+                    pubKeyHash,
+                    round,
+                    callbackGasLimit,
+                    [signature.x, signature.y],
+                ),
+            )
+                .to.emit(anyrand, 'RandomnessCallbackFailed')
+                .withArgs(
+                    requestId,
+                    /** ReentrancyGuardReentrantCall() */
+                    '0x3ee5aeb500000000000000000000000000000000000000000000000000000000',
+                )
         })
     })
 
@@ -547,6 +582,111 @@ describe.only('Anyrand', () => {
                     /** AlwaysBeErroring() */
                     '0x3166292600000000000000000000000000000000000000000000000000000000',
                 )
+        })
+    })
+
+    describe('setBeacon', () => {
+        let newBeacon: DrandBeacon
+        beforeEach(async () => {
+            const pkAffine = beaconPubKey.toAffine()
+            newBeacon = await new DrandBeacon__factory(deployer).deploy(
+                [pkAffine.x.c0, pkAffine.x.c1, pkAffine.y.c0, pkAffine.y.c1],
+                beaconGenesisTimestamp,
+                beaconPeriod,
+            )
+        })
+
+        it('should set the beacon if caller has BEACON_ADMIN_ROLE', async () => {
+            await anyrand.grantRoles(deployer.address, await anyrand.BEACON_ADMIN_ROLE())
+            await anyrand.setBeacon(await newBeacon.getAddress())
+            expect(await anyrand.beacon()).to.eq(await newBeacon.getAddress())
+        })
+
+        it('should revert if caller does not have BEACON_ADMIN_ROLE', async () => {
+            await expect(
+                anyrand.setBeacon(await newBeacon.getAddress()),
+            ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
+        })
+
+        it('should revert if beacon is invalid', async () => {
+            await anyrand.grantRoles(deployer.address, await anyrand.BEACON_ADMIN_ROLE())
+
+            const dummyBeacon = await new Dummy__factory(deployer).deploy()
+            await expect(
+                anyrand.setBeacon(await dummyBeacon.getAddress()),
+            ).to.be.revertedWithCustomError(anyrand, 'InvalidBeacon')
+
+            const emptyPubKeyBeacon = await new WhateverBeacon__factory(deployer).deploy(
+                '0x',
+                0n,
+                0n,
+            )
+            await expect(
+                anyrand.setBeacon(await emptyPubKeyBeacon.getAddress()),
+            ).to.be.revertedWithCustomError(anyrand, 'InvalidBeacon')
+        })
+    })
+
+    describe('setBaseRequestPrice', () => {
+        it('should set the base request price if caller has CONFIGURATOR_ROLE', async () => {
+            await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
+            await anyrand.setBaseRequestPrice(parseEther('1'))
+            expect(await anyrand.baseRequestPrice()).to.eq(parseEther('1'))
+        })
+
+        it('should revert if caller does not have CONFIGURATOR_ROLE', async () => {
+            await expect(
+                anyrand.setBaseRequestPrice(parseEther('1')),
+            ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
+        })
+    })
+
+    describe('setMaxCallbackGasLimit', () => {
+        it('should set the max callback gas limit if caller has CONFIGURATOR_ROLE', async () => {
+            await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
+            await anyrand.setMaxCallbackGasLimit(100_000n)
+            expect(await anyrand.maxCallbackGasLimit()).to.eq(100_000n)
+        })
+
+        it('should revert if caller does not have CONFIGURATOR_ROLE', async () => {
+            await expect(anyrand.setMaxCallbackGasLimit(100_000n)).to.be.revertedWithCustomError(
+                anyrand,
+                'Unauthorized',
+            )
+        })
+    })
+
+    describe('setMaxDeadlineDelta', () => {
+        it('should set the max deadline delta if caller has CONFIGURATOR_ROLE', async () => {
+            await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
+            await anyrand.setMaxDeadlineDelta(7200n)
+            expect(await anyrand.maxDeadlineDelta()).to.eq(7200n)
+        })
+
+        it('should revert if caller does not have CONFIGURATOR_ROLE', async () => {
+            await expect(anyrand.setMaxDeadlineDelta(7200n)).to.be.revertedWithCustomError(
+                anyrand,
+                'Unauthorized',
+            )
+        })
+    })
+
+    describe('setGasStation', () => {
+        let newGasStation: GasStationEthereum
+        beforeEach(async () => {
+            newGasStation = await new GasStationEthereum__factory(deployer).deploy()
+        })
+
+        it('should set the gas station if caller has CONFIGURATOR_ROLE', async () => {
+            await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
+            await anyrand.setGasStation(await newGasStation.getAddress())
+            expect(await anyrand.gasStation()).to.eq(await newGasStation.getAddress())
+        })
+
+        it('should revert if caller does not have CONFIGURATOR_ROLE', async () => {
+            await expect(
+                anyrand.setGasStation(await newGasStation.getAddress()),
+            ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
         })
     })
 })

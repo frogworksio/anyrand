@@ -209,7 +209,7 @@ contract Anyrand is
     /// @param signature The beacon signature
     function _verifyBeaconRound(
         uint256 round,
-        uint256[2] calldata signature
+        uint256[2] memory signature
     ) internal view {
         // Encode round for hash-to-point
         bytes memory hashedRoundBytes = new bytes(32);
@@ -331,12 +331,9 @@ contract Anyrand is
     /// @param newBeacon The new beacon
     function _setBeacon(address newBeacon) internal {
         // Sanity check
-        IDrandBeacon beacon_ = IDrandBeacon(newBeacon);
-        if (
-            beacon_.publicKey().length == 0 ||
-            beacon_.period() == 0 ||
-            beacon_.genesisTimestamp() == 0
-        ) {
+        try IDrandBeacon(newBeacon).publicKey() returns (bytes memory pubKey) {
+            if (pubKey.length == 0) revert InvalidBeacon(newBeacon);
+        } catch {
             revert InvalidBeacon(newBeacon);
         }
 
