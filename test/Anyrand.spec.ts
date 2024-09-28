@@ -6,14 +6,14 @@ import {
     AnyrandConsumer__factory,
     AnyrandHarness,
     AnyrandHarness__factory,
-    Anyrand__factory,
     DrandBeacon,
     Dummy__factory,
     ERC1967Proxy__factory,
     GasStationEthereum,
+    ReentrantFulfiler__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { ZeroAddress, keccak256, parseEther, solidityPackedKeccak256 } from 'ethers'
+import { ZeroAddress, keccak256, parseEther } from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { deployAnyrandStack, G2, getHashedRoundMsg, getRound } from './helpers'
@@ -397,6 +397,32 @@ describe.only('Anyrand', () => {
             )
                 .to.emit(anyrand, 'RandomnessFulfilled')
                 .withArgs(requestId, [randomness], true)
+        })
+
+        it('should revert if callback tries to reenter fulfillRandomness', async () => {
+            const reentrantFulfiller = await new ReentrantFulfiler__factory(deployer).deploy(
+                await anyrand.getAddress(),
+            )
+            await setBalance(await reentrantFulfiller.getAddress(), parseEther('10'))
+            const deadline = BigInt(await time.latest()) + 30n
+            const requestId = await anyrand.nextRequestId()
+            const callbackGasLimit = 500_000n
+            await reentrantFulfiller.getRandom(deadline, callbackGasLimit)
+
+            // Looped fulfillRandomness
+            const pubKeyHash = await drandBeacon.publicKeyHash()
+            const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)
+            const M = getHashedRoundMsg(round)
+            const signature = bn254.signShortSignature(M, beaconSecretKey).toAffine()
+            await expect(
+                reentrantFulfiller.fulfillRandomness(
+                    requestId,
+                    pubKeyHash,
+                    round,
+                    callbackGasLimit,
+                    [signature.x, signature.y],
+                ),
+            ).to.be.reverted // hh bug? nonReentrant reverts without a reason
         })
     })
 })

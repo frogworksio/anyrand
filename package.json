@@ -39,7 +39,7 @@
     "chai": "^4.2.0",
     "dotenv": "^16.3.1",
     "ethers": "^6.11.1",
-    "hardhat": "^2.22.1",
+    "hardhat": "2.21.x",
     "hardhat-abi-exporter": "^2.10.1",
     "hardhat-contract-sizer": "^2.10.0",
     "hardhat-gas-reporter": "^1.0.9",
