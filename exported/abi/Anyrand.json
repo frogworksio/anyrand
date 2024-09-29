@@ -382,7 +382,7 @@
         "type": "uint256"
       }
     ],
-    "name": "RequestPriceUpdated",
+    "name": "RequestPremiumUpdated",
     "type": "event"
   },
   {
@@ -477,19 +477,6 @@
         "internalType": "string",
         "name": "",
         "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "baseRequestPrice",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -673,7 +660,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "initialRequestPrice",
+        "name": "requestPremiumBps_",
         "type": "uint256"
       },
       {
@@ -809,6 +796,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "requestPremiumBps",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -891,19 +891,6 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "newPrice",
-        "type": "uint256"
-      }
-    ],
-    "name": "setBaseRequestPrice",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "address",
         "name": "newBeacon",
         "type": "address"
@@ -949,6 +936,19 @@
       }
     ],
     "name": "setMaxDeadlineDelta",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "newRequestPremiumBps",
+        "type": "uint256"
+      }
+    ],
+    "name": "setRequestPremiumBps",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

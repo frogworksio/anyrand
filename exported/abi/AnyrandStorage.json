@@ -236,21 +236,8 @@
         "type": "uint256"
       }
     ],
-    "name": "RequestPriceUpdated",
+    "name": "RequestPremiumUpdated",
     "type": "event"
-  },
-  {
-    "inputs": [],
-    "name": "baseRequestPrice",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
   },
   {
     "inputs": [],
@@ -326,6 +313,19 @@
   {
     "inputs": [],
     "name": "nextRequestId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "requestPremiumBps",
     "outputs": [
       {
         "internalType": "uint256",

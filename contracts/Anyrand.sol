@@ -35,13 +35,14 @@ contract Anyrand is
 
     /// @notice Initialise the contract
     /// @param beacon_ The address of contract with drand beacon data
-    /// @param initialRequestPrice The initial base request price
+    /// @param requestPremiumBps_ The percentage charged on top of the raw tx
+    ///     cost, in basis points
     /// @param maxCallbackGasLimit_ The maximum callback gas limit
     /// @param maxDeadlineDelta_ The maximum deadline delta
     /// @param gasStation_ The address of the gas station
     function init(
         address beacon_,
-        uint256 initialRequestPrice,
+        uint256 requestPremiumBps_,
         uint256 maxCallbackGasLimit_,
         uint256 maxDeadlineDelta_,
         address gasStation_
@@ -54,8 +55,8 @@ contract Anyrand is
 
         _setBeacon(beacon_);
 
-        $.baseRequestPrice = initialRequestPrice;
-        emit RequestPriceUpdated(initialRequestPrice);
+        $.requestPremiumBps = requestPremiumBps_;
+        emit RequestPremiumUpdated(requestPremiumBps_);
 
         $.maxCallbackGasLimit = maxCallbackGasLimit_;
         emit MaxCallbackGasLimitUpdated(maxCallbackGasLimit_);
@@ -125,9 +126,11 @@ contract Anyrand is
         uint256 callbackGasLimit
     ) public view virtual returns (uint256) {
         MainStorage storage $ = _getMainStorage();
-        return
-            $.baseRequestPrice +
-            IGasStation($.gasStation).getTxCost(callbackGasLimit);
+        uint256 rawTxCost = IGasStation($.gasStation).getTxCost(
+            callbackGasLimit
+        );
+        uint256 premium = (rawTxCost * $.requestPremiumBps) / 1e4;
+        return rawTxCost + premium;
     }
 
     /// @notice Request randomness
@@ -298,13 +301,13 @@ contract Anyrand is
     }
 
     /// @notice Update request price
-    /// @param newPrice The new price
-    function setBaseRequestPrice(
-        uint256 newPrice
+    /// @param newRequestPremiumBps The new request premium
+    function setRequestPremiumBps(
+        uint256 newRequestPremiumBps
     ) external onlyRoles(CONFIGURATOR_ROLE) {
         MainStorage storage $ = _getMainStorage();
-        $.baseRequestPrice = newPrice;
-        emit RequestPriceUpdated(newPrice);
+        $.requestPremiumBps = newRequestPremiumBps;
+        emit RequestPremiumUpdated(newRequestPremiumBps);
     }
 
     /// @notice Update max callback gas limit

@@ -23,7 +23,7 @@ export interface AnyrandStackConfig {
               genesisTimestamp: bigint
               period: bigint
           }
-    baseRequestPrice?: bigint
+    requestPremiumBps?: bigint
     maxCallbackGasLimit?: bigint
     maxDeadlineDelta?: bigint
     gasStation?: `0x${string}`
@@ -56,7 +56,7 @@ export async function deployAnyrandStack(config: AnyrandStackConfig) {
 
     const anyrandArgs: Parameters<Anyrand['init']> = [
         await drandBeacon.getAddress(),
-        config.baseRequestPrice || parseEther('0.001'),
+        config.requestPremiumBps || 20_00,
         config.maxCallbackGasLimit || 2_000_000,
         config.maxDeadlineDelta || 1800,
         await gasStation.getAddress(),

@@ -74,7 +74,7 @@ describe('Anyrand', () => {
             await expect(tx)
                 .to.emit(anyrand, 'BeaconUpdated')
                 .withArgs(await drandBeacon.getAddress())
-            await expect(tx).to.emit(anyrand, 'RequestPriceUpdated').withArgs(anyrandArgs[1])
+            await expect(tx).to.emit(anyrand, 'RequestPremiumUpdated').withArgs(anyrandArgs[1])
             await expect(tx).to.emit(anyrand, 'MaxCallbackGasLimitUpdated').withArgs(anyrandArgs[2])
             await expect(tx).to.emit(anyrand, 'MaxDeadlineDeltaUpdated').withArgs(anyrandArgs[3])
             await expect(tx)
@@ -164,7 +164,6 @@ describe('Anyrand', () => {
         })
 
         it('should return the correct request price', async () => {
-            const baseRequestPrice = await anyrand.baseRequestPrice()
             const requestPrice0 = await anyrand.getRequestPrice(100_000, {
                 maxFeePerGas,
                 maxPriorityFeePerGas,
@@ -173,12 +172,12 @@ describe('Anyrand', () => {
                 maxFeePerGas,
                 maxPriorityFeePerGas,
             })
-            expect(requestPrice1 - baseRequestPrice).to.be.gt(requestPrice0 - baseRequestPrice)
+            expect(requestPrice1).to.be.gt(requestPrice0)
             const requestPrice2 = await anyrand.getRequestPrice(500_000, {
                 maxFeePerGas,
                 maxPriorityFeePerGas,
             })
-            expect(requestPrice2 - baseRequestPrice).be.gt(requestPrice1 - baseRequestPrice)
+            expect(requestPrice2).be.gt(requestPrice1)
         })
     })
 
@@ -570,17 +569,18 @@ describe('Anyrand', () => {
         })
     })
 
-    describe('setBaseRequestPrice', () => {
+    describe('setRequestPremiumBps', () => {
         it('should set the base request price if caller has CONFIGURATOR_ROLE', async () => {
             await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
-            await anyrand.setBaseRequestPrice(parseEther('1'))
-            expect(await anyrand.baseRequestPrice()).to.eq(parseEther('1'))
+            await anyrand.setRequestPremiumBps(20_00) // 20%
+            expect(await anyrand.requestPremiumBps()).to.eq(20_00)
         })
 
         it('should revert if caller does not have CONFIGURATOR_ROLE', async () => {
-            await expect(
-                anyrand.setBaseRequestPrice(parseEther('1')),
-            ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
+            await expect(anyrand.setRequestPremiumBps(20_00)).to.be.revertedWithCustomError(
+                anyrand,
+                'Unauthorized',
+            )
         })
     })
 
