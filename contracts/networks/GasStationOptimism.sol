@@ -38,9 +38,6 @@ contract GasStationOptimism is IGasStation {
     ///     estimation. Any estimations below this are set to this value.
     uint256 private constant MIN_TRANSACTION_SIZE = 100;
 
-    /// @notice mmm chocolate so good yes yes yes
-    uint256 private constant FUDGE_FACTOR_BPS = 15000;
-
     /// @notice Optimism L2 system contract
     address public constant L1_GAS_PRICE_ORACLE =
         0x420000000000000000000000000000000000000F;
@@ -67,8 +64,7 @@ contract GasStationOptimism is IGasStation {
         // Compute L2 execution fee estimate
         uint256 l2GasFee = gasLimit * tx.gasprice;
         // Sprinkle in some fudge in case of volatility
-        uint256 totalGasFee = ((l2GasFee + l1GasFee) * FUDGE_FACTOR_BPS) /
-            10000;
+        uint256 totalGasFee = (l2GasFee + l1GasFee) / 10000;
         return (totalGasFee, totalGasFee / gasLimit);
     }
 

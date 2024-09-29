@@ -178,6 +178,11 @@ describe('Anyrand', () => {
                 maxPriorityFeePerGas,
             })
             expect(requestPrice2).be.gt(requestPrice1)
+            const [gasCost] = await anyrand.gas_getRequestPrice(500_000, {
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+            })
+            console.log(`#getRequestPrice gas: ${gasCost}`)
         })
     })
 

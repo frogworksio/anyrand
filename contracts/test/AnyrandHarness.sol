@@ -37,4 +37,20 @@ contract AnyrandHarness is Anyrand {
             callbackGasLimit
         );
     }
+
+    function gas_getRequestPrice(
+        uint256 callbackGasLimit
+    )
+        public
+        view
+        returns (
+            uint256 gasCost,
+            uint256 totalPrice,
+            uint256 effectiveFeePerGas
+        )
+    {
+        gasCost = gasleft();
+        (totalPrice, effectiveFeePerGas) = getRequestPrice(callbackGasLimit);
+        gasCost = gasCost - gasleft();
+    }
 }

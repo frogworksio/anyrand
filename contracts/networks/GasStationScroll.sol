@@ -18,9 +18,6 @@ contract GasStationScroll is IGasStation {
     /// @notice Actual avg: ~194B
     uint256 public constant FULFILL_RANDOMNESS_TX_NON_ZERO_BYTES = 250;
 
-    /// @notice mmm chocolate so good yes yes yes
-    uint256 public constant FUDGE_FACTOR_BPS = 15000;
-
     /// @notice Scroll L2 system contract
     address public constant L1_GAS_PRICE_ORACLE =
         0x5300000000000000000000000000000000000002;
@@ -48,8 +45,7 @@ contract GasStationScroll is IGasStation {
         // Compute L2 execution fee estimate
         uint256 l2GasFee = gasLimit * tx.gasprice;
         // Sprinkle in some fudge in case of volatility
-        uint256 totalGasFee = ((l2GasFee + l1GasFee) * FUDGE_FACTOR_BPS) /
-            10000;
+        uint256 totalGasFee = (l2GasFee + l1GasFee) / 10000;
         uint256 effectiveFeePerGas = totalGasFee / gasLimit;
         return (totalGasFee, effectiveFeePerGas);
     }
