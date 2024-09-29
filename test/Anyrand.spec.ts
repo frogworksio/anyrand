@@ -664,4 +664,40 @@ describe('Anyrand', () => {
             ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
         })
     })
+
+    describe('requests', () => {
+        it('should return a request hash for a requestId', async () => {
+            const requestId = 42n
+            const requester = await consumer.getAddress()
+            const pubKeyHash = await drandBeacon.publicKeyHash()
+            const round = 1n
+            const callbackGasLimit = 100_000n
+            await anyrand.setRequest(requestId, requester, pubKeyHash, round, callbackGasLimit)
+            const requestHash = await anyrand.requests(requestId)
+            expect(requestHash).to.eq(
+                keccak256(
+                    abi.encode(
+                        [
+                            'uint256',
+                            'address',
+                            'uint256',
+                            'address',
+                            'bytes32',
+                            'uint256',
+                            'uint256',
+                        ],
+                        [
+                            await ethers.provider.getNetwork().then((network) => network.chainId),
+                            await anyrand.getAddress(),
+                            requestId,
+                            requester,
+                            pubKeyHash,
+                            round,
+                            callbackGasLimit,
+                        ],
+                    ),
+                ),
+            )
+        })
+    })
 })
