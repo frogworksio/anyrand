@@ -23,12 +23,11 @@ contract ReentrantFulfiler is IRandomiserCallback {
     /// @notice Request a random number, calling back to this contract
     function getRandom(uint256 deadline, uint256 callbackGasLimit) public {
         require(deadline > block.timestamp, "Deadline is in the past");
-        uint256 requestPrice = Anyrand(anyrand).getRequestPrice(
-            callbackGasLimit
-        );
+        (uint256 requestPrice, uint256 effectiveFeePerGas) = Anyrand(anyrand)
+            .getRequestPrice(callbackGasLimit);
         uint256 requestId = Anyrand(anyrand).requestRandomness{
             value: requestPrice
-        }(deadline, callbackGasLimit);
+        }(deadline, callbackGasLimit, effectiveFeePerGas);
         randomness[requestId] = 1;
     }
 

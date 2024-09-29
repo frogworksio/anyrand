@@ -31,13 +31,17 @@ interface IAnyrand is ITypeAndVersion {
     error InvalidDeadline(uint256 deadline);
     error InsufficientGas();
     error InvalidBeacon(address beacon);
+    error EffectiveFeePerGasTooHigh(
+        uint256 effectiveFeePerGas,
+        uint256 maxFeePerGas
+    );
 
     /// @notice Compute the total request price
     /// @param callbackGasLimit The callback gas limit that will be used for
     ///     the randomness request
     function getRequestPrice(
         uint256 callbackGasLimit
-    ) external view returns (uint256);
+    ) external view returns (uint256 totalPrice, uint256 effectiveFeePerGas);
 
     /// @notice Request randomness
     /// @param deadline Timestamp of when the randomness should be fulfilled. A
@@ -47,6 +51,7 @@ interface IAnyrand is ITypeAndVersion {
     /// @param callbackGasLimit Gas limit for callback
     function requestRandomness(
         uint256 deadline,
-        uint256 callbackGasLimit
+        uint256 callbackGasLimit,
+        uint256 maxFeePerGas
     ) external payable returns (uint256);
 }

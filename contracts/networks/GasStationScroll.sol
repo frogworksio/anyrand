@@ -33,7 +33,7 @@ contract GasStationScroll is IGasStation {
     /// @notice Compute the total request price
     function getTxCost(
         uint256 gasLimit
-    ) public view virtual override returns (uint256) {
+    ) public view virtual override returns (uint256, uint256) {
         // Compute L1 calldata fee estimate
         // See: https://docs.scroll.io/en/developers/transaction-fees-on-scroll/
         uint256 overhead = IL1GasPriceOracle(L1_GAS_PRICE_ORACLE).overhead();
@@ -46,10 +46,11 @@ contract GasStationScroll is IGasStation {
         uint256 l1GasFee = ((l1Gas + overhead) * l1BaseFee * scalar) /
             PRECISION;
         // Compute L2 execution fee estimate
-        uint256 l2GasFee = (200_000 + gasLimit) * tx.gasprice;
+        uint256 l2GasFee = gasLimit * tx.gasprice;
         // Sprinkle in some fudge in case of volatility
         uint256 totalGasFee = ((l2GasFee + l1GasFee) * FUDGE_FACTOR_BPS) /
             10000;
-        return totalGasFee;
+        uint256 effectiveFeePerGas = totalGasFee / gasLimit;
+        return (totalGasFee, effectiveFeePerGas);
     }
 }

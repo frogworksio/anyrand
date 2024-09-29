@@ -53,7 +53,7 @@ contract GasStationOptimism is IGasStation {
     /// @notice Compute the total request price
     function getTxCost(
         uint256 gasLimit
-    ) public view virtual override returns (uint256) {
+    ) public view virtual override returns (uint256, uint256) {
         uint256 l1GasFee;
         if (IGasPriceOracle(L1_GAS_PRICE_ORACLE).isEcotone()) {
             l1GasFee = _getL1FeeEcotone();
@@ -65,11 +65,11 @@ contract GasStationOptimism is IGasStation {
         }
 
         // Compute L2 execution fee estimate
-        uint256 l2GasFee = (200_000 + gasLimit) * tx.gasprice;
+        uint256 l2GasFee = gasLimit * tx.gasprice;
         // Sprinkle in some fudge in case of volatility
         uint256 totalGasFee = ((l2GasFee + l1GasFee) * FUDGE_FACTOR_BPS) /
             10000;
-        return totalGasFee;
+        return (totalGasFee, totalGasFee / gasLimit);
     }
 
     /// @notice Computation of the L1 portion of the fee for Bedrock.

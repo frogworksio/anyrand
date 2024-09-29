@@ -124,13 +124,15 @@ contract Anyrand is
     ///     the randomness request
     function getRequestPrice(
         uint256 callbackGasLimit
-    ) public view virtual returns (uint256) {
+    ) public view virtual returns (uint256, uint256) {
         MainStorage storage $ = _getMainStorage();
-        uint256 rawTxCost = IGasStation($.gasStation).getTxCost(
-            callbackGasLimit
-        );
+        (uint256 rawTxCost, uint256 effectiveFeePerGas) = IGasStation(
+            $.gasStation
+        ).getTxCost(
+                200_000 /** fulfillRandomness overhead */ + callbackGasLimit
+            );
         uint256 premium = (rawTxCost * $.requestPremiumBps) / 1e4;
-        return rawTxCost + premium;
+        return (rawTxCost + premium, effectiveFeePerGas);
     }
 
     /// @notice Request randomness
@@ -139,11 +141,19 @@ contract Anyrand is
     ///     future round) will be used as the round from which to derive
     ///     randomness.
     /// @param callbackGasLimit Gas limit for callback
+    /// @param maxFeePerGas The maximum effective fee per gas that the
+    ///     requester is willing to pay (excluding premium).
     function requestRandomness(
         uint256 deadline,
-        uint256 callbackGasLimit
+        uint256 callbackGasLimit,
+        uint256 maxFeePerGas
     ) external payable override nonReentrant returns (uint256) {
-        uint256 reqPrice = getRequestPrice(callbackGasLimit);
+        (uint256 reqPrice, uint256 effectiveFeePerGas) = getRequestPrice(
+            callbackGasLimit
+        );
+        if (effectiveFeePerGas > maxFeePerGas) {
+            revert EffectiveFeePerGasTooHigh(effectiveFeePerGas, maxFeePerGas);
+        }
         if (msg.value != reqPrice) {
             revert IncorrectPayment(msg.value, reqPrice);
         }
@@ -153,25 +163,30 @@ contract Anyrand is
             revert OverGasLimit(callbackGasLimit);
         }
 
-        IDrandBeacon beacon_ = IDrandBeacon($.beacon);
-        uint256 genesis = beacon_.genesisTimestamp();
-        uint256 period = beacon_.period();
-        if (
-            (deadline > block.timestamp + $.maxDeadlineDelta) ||
-            (deadline < genesis) ||
-            deadline < (block.timestamp + period)
-        ) {
-            revert InvalidDeadline(deadline);
+        bytes32 pubKeyHash;
+        uint64 round;
+        {
+            IDrandBeacon drandBeacon = IDrandBeacon($.beacon);
+            pubKeyHash = drandBeacon.publicKeyHash();
+            uint256 genesis = drandBeacon.genesisTimestamp();
+            uint256 period = drandBeacon.period();
+            if (
+                (deadline > block.timestamp + $.maxDeadlineDelta) ||
+                (deadline < genesis) ||
+                deadline < (block.timestamp + period)
+            ) {
+                revert InvalidDeadline(deadline);
+            }
+            // Calculate nearest round from deadline (rounding to the future)
+            uint256 delta = deadline - genesis;
+            round = uint64((delta / period) + (delta % period));
         }
-        // Calculate nearest round from deadline (rounding to the future)
-        uint256 delta = deadline - genesis;
-        uint64 round = uint64((delta / period) + (delta % period));
 
         uint256 requestId = $.nextRequestId++;
         $.requests[requestId] = _hashRequest(
             requestId,
             msg.sender,
-            beacon_.publicKeyHash(),
+            pubKeyHash,
             round,
             callbackGasLimit
         );

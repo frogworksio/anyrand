@@ -37,6 +37,22 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "effectiveFeePerGas",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxFeePerGas",
+        "type": "uint256"
+      }
+    ],
+    "name": "EffectiveFeePerGasTooHigh",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "FailedInnerCall",
     "type": "error"
@@ -580,6 +596,11 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -818,6 +839,11 @@
       {
         "internalType": "uint256",
         "name": "callbackGasLimit",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxFeePerGas",
         "type": "uint256"
       }
     ],

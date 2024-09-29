@@ -25,9 +25,8 @@ contract AnyrandConsumer is Ownable, IRandomiserCallback {
         uint256 callbackGasLimit
     ) external payable {
         require(deadline > block.timestamp, "Deadline is in the past");
-        uint256 requestPrice = Anyrand(anyrand).getRequestPrice(
-            callbackGasLimit
-        );
+        (uint256 requestPrice, uint256 effectiveFeePerGas) = Anyrand(anyrand)
+            .getRequestPrice(callbackGasLimit);
         require(msg.value >= requestPrice, "Insufficient payment");
         if (msg.value > requestPrice) {
             (bool success, ) = msg.sender.call{value: msg.value - requestPrice}(
@@ -37,7 +36,7 @@ contract AnyrandConsumer is Ownable, IRandomiserCallback {
         }
         uint256 requestId = Anyrand(anyrand).requestRandomness{
             value: requestPrice
-        }(deadline, callbackGasLimit);
+        }(deadline, callbackGasLimit, effectiveFeePerGas);
         randomness[requestId] = 1;
     }
 

@@ -16,10 +16,10 @@ contract GasStationEthereum is IGasStation {
     /// @notice Compute the total request price
     function getTxCost(
         uint256 gasLimit
-    ) public view virtual override returns (uint256) {
-        uint256 rawTxFee = (200_000 + gasLimit) * tx.gasprice;
+    ) public view virtual override returns (uint256, uint256) {
+        uint256 rawTxFee = gasLimit * tx.gasprice;
         // Sprinkle in some fudge in case of volatility
         uint256 totalGasFee = (rawTxFee * FUDGE_FACTOR_BPS) / 10000;
-        return totalGasFee;
+        return (totalGasFee, totalGasFee / gasLimit);
     }
 }

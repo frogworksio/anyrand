@@ -8,6 +8,10 @@ interface IGasStation is ITypeAndVersion {
     ///     `gasLimit` of gas
     /// @param gasLimit The gas limit that will be used to calculate the cost
     ///     of the transaction.
-    /// @return The total transaction cost (in wei)
-    function getTxCost(uint256 gasLimit) external view returns (uint256);
+    /// @return totalCost The total transaction cost (in wei)
+    /// @return effectiveFeePerGas The effective fee per gas, after accounting
+    ///     for multidimensional pricing for L2s
+    function getTxCost(
+        uint256 gasLimit
+    ) external view returns (uint256 totalCost, uint256 effectiveFeePerGas);
 }

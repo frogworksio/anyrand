@@ -18,7 +18,7 @@ import {
     WhateverBeacon__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { Wallet, ZeroAddress, keccak256, parseEther, randomBytes } from 'ethers'
+import { Wallet, ZeroAddress, keccak256, parseEther, parseUnits, randomBytes } from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { deployAnyrandStack, G2, getHashedRoundMsg, getRound } from './helpers'
@@ -164,16 +164,16 @@ describe('Anyrand', () => {
         })
 
         it('should return the correct request price', async () => {
-            const requestPrice0 = await anyrand.getRequestPrice(100_000, {
+            const [requestPrice0] = await anyrand.getRequestPrice(100_000, {
                 maxFeePerGas,
                 maxPriorityFeePerGas,
             })
-            const requestPrice1 = await anyrand.getRequestPrice(200_000, {
+            const [requestPrice1] = await anyrand.getRequestPrice(200_000, {
                 maxFeePerGas,
                 maxPriorityFeePerGas,
             })
             expect(requestPrice1).to.be.gt(requestPrice0)
-            const requestPrice2 = await anyrand.getRequestPrice(500_000, {
+            const [requestPrice2] = await anyrand.getRequestPrice(500_000, {
                 maxFeePerGas,
                 maxPriorityFeePerGas,
             })
@@ -182,8 +182,6 @@ describe('Anyrand', () => {
     })
 
     describe('requestRandomness', () => {
-        // let maxFeePerGas: bigint
-        // let maxPriorityFeePerGas: bigint
         let gasPrice: bigint
         let requestPrice: bigint
         let callbackGasLimit: bigint
@@ -194,7 +192,7 @@ describe('Anyrand', () => {
                 maxPriorityFeePerGas: res.maxPriorityFeePerGas!,
             })))
             callbackGasLimit = 100_000n
-            requestPrice = await anyrand.getRequestPrice(callbackGasLimit, {
+            ;[requestPrice] = await anyrand.getRequestPrice(callbackGasLimit, {
                 gasPrice,
             })
         })
@@ -203,7 +201,7 @@ describe('Anyrand', () => {
             const deadline = BigInt(await time.latest()) + 31n
             const requestId = await anyrand.nextRequestId()
             await expect(
-                anyrand.requestRandomness(deadline, callbackGasLimit, {
+                anyrand.requestRandomness(deadline, callbackGasLimit, parseUnits('2', 'gwei'), {
                     value: requestPrice,
                     gasPrice,
                 }),
@@ -218,29 +216,58 @@ describe('Anyrand', () => {
                 )
         })
 
+        it('should revert if request price returns too high effective gas price', async () => {
+            const [requestPrice, effectiveGasPrice] = await anyrand.getRequestPrice(100_000, {
+                gasPrice,
+            })
+            await expect(
+                anyrand.requestRandomness(
+                    (await time.latest()) + 31,
+                    callbackGasLimit,
+                    effectiveGasPrice - 1n /** less than effective gas price */,
+                    {
+                        value: requestPrice,
+                        gasPrice,
+                    },
+                ),
+            )
+                .to.be.revertedWithCustomError(anyrand, 'EffectiveFeePerGasTooHigh')
+                .withArgs(effectiveGasPrice, effectiveGasPrice - 1n)
+        })
+
         it('should revert if payment is incorrect', async () => {
             await expect(
-                anyrand.requestRandomness((await time.latest()) + 31, callbackGasLimit, {
-                    value: requestPrice / 2n, // not enough
-                    gasPrice,
-                }),
+                anyrand.requestRandomness(
+                    (await time.latest()) + 31,
+                    callbackGasLimit,
+                    parseUnits('2', 'gwei'),
+                    {
+                        value: requestPrice / 2n, // not enough
+                        gasPrice,
+                    },
+                ),
             ).to.be.revertedWithCustomError(anyrand, 'IncorrectPayment')
             await expect(
-                anyrand.requestRandomness((await time.latest()) + 31, callbackGasLimit, {
-                    value: requestPrice * 2n, // too much
-                    gasPrice,
-                }),
+                anyrand.requestRandomness(
+                    (await time.latest()) + 31,
+                    callbackGasLimit,
+                    parseUnits('2', 'gwei'),
+                    {
+                        value: requestPrice * 2n, // too much
+                        gasPrice,
+                    },
+                ),
             ).to.be.revertedWithCustomError(anyrand, 'IncorrectPayment')
         })
 
         it('should revert if gas limit too high', async () => {
             const tooHighGasLimit = (await anyrand.maxCallbackGasLimit()) + 1n
-            const tooHighRequestPrice = await anyrand.getRequestPrice(tooHighGasLimit, {
+            const [tooHighRequestPrice] = await anyrand.getRequestPrice(tooHighGasLimit, {
                 gasPrice,
             })
             const deadline = BigInt(await time.latest()) + 31n
             await expect(
-                anyrand.requestRandomness(deadline, tooHighGasLimit, {
+                anyrand.requestRandomness(deadline, tooHighGasLimit, parseUnits('2', 'gwei'), {
                     value: tooHighRequestPrice,
                     gasPrice,
                 }),
@@ -250,7 +277,7 @@ describe('Anyrand', () => {
         it('should revert if deadline too far in the future', async () => {
             const deadline = BigInt(await time.latest()) + (await anyrand.maxDeadlineDelta()) + 10n
             await expect(
-                anyrand.requestRandomness(deadline, callbackGasLimit, {
+                anyrand.requestRandomness(deadline, callbackGasLimit, parseUnits('2', 'gwei'), {
                     value: requestPrice,
                     gasPrice,
                 }),
@@ -260,17 +287,22 @@ describe('Anyrand', () => {
         it('should revert if deadline is before genesis', async () => {
             const invalidDeadline = beaconGenesisTimestamp - 1n
             await expect(
-                anyrand.requestRandomness(invalidDeadline, callbackGasLimit, {
-                    value: requestPrice,
-                    gasPrice,
-                }),
+                anyrand.requestRandomness(
+                    invalidDeadline,
+                    callbackGasLimit,
+                    parseUnits('2', 'gwei'),
+                    {
+                        value: requestPrice,
+                        gasPrice,
+                    },
+                ),
             ).to.be.revertedWithCustomError(anyrand, 'InvalidDeadline')
         })
 
         it('should revert if deadline is not at least one period after current timestamp', async () => {
             const deadline = BigInt(await time.latest()) + beaconPeriod - 1n
             await expect(
-                anyrand.requestRandomness(deadline, callbackGasLimit, {
+                anyrand.requestRandomness(deadline, callbackGasLimit, parseUnits('2', 'gwei'), {
                     value: requestPrice,
                     gasPrice,
                 }),
@@ -318,7 +350,7 @@ describe('Anyrand', () => {
                 gasPrice: res.gasPrice!,
             })))
             callbackGasLimit = 100_000n
-            requestPrice = await anyrand.getRequestPrice(callbackGasLimit, {
+            ;[requestPrice] = await anyrand.getRequestPrice(callbackGasLimit, {
                 gasPrice,
             })
         })
