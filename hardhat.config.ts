@@ -23,12 +23,6 @@ const config: HardhatUserConfig = {
     },
     networks: {
         hardhat: {
-            chainId: 534352,
-            forking: {
-                enabled: true,
-                url: process.env.SCROLL_URL as string,
-                blockNumber: 1592721,
-            },
             blockGasLimit: 30_000_000,
             accounts: {
                 count: 10,

@@ -23,15 +23,7 @@ import {
     WhateverBeacon__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import {
-    Wallet,
-    ZeroAddress,
-    formatUnits,
-    keccak256,
-    parseEther,
-    parseUnits,
-    randomBytes,
-} from 'ethers'
+import { Wallet, ZeroAddress, keccak256, parseEther, parseUnits, randomBytes } from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { deployAnyrandStack, G2, getHashedRoundMsg, getRound } from './helpers'

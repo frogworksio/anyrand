@@ -1,4 +1,4 @@
-import { ethers } from 'hardhat'
+import * as hre from 'hardhat'
 import { time } from '@nomicfoundation/hardhat-network-helpers'
 import {
     Anyrand,
@@ -15,13 +15,17 @@ import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 import { Wallet, formatEther, formatUnits, getBytes, keccak256, parseEther } from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
-import { deployAnyrandStack } from './helpers'
+import { deployAnyrandStack, getRound } from './helpers'
+import { DrandBeaconRound, getDrandBeaconInfo, getDrandBeaconRound } from '../lib/drand'
+
+const { ethers } = hre
+const isCoverage = Boolean((hre as any).__SOLIDITY_COVERAGE_RUNNING)
 
 type G1 = typeof bn254.G1.ProjectivePoint.BASE
 type G2 = typeof bn254.G2.ProjectivePoint.BASE
 const DST = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_'
 
-describe('Anyrand e2e', () => {
+;(isCoverage ? describe.skip : describe)('Anyrand e2e', () => {
     let deployer: SignerWithAddress
     let bob: SignerWithAddress
     let anyrandImpl: Anyrand
@@ -116,6 +120,65 @@ describe('Anyrand e2e', () => {
             `Raw signed fulfillRandomness tx: ${zeros} zero bytes, ${nonZeros} non-zero bytes`,
         )
     })
+
+    it('works with evmnet', async () => {
+        const drandBeaconInfo = await getDrandBeaconInfo('evmnet')
+        expect(drandBeaconInfo.beacon_id).to.eq('evmnet')
+        ;({ anyrand, anyrandImpl, anyrandArgs, drandBeacon, gasStation } = await deployAnyrandStack(
+            {
+                deployer,
+                beacon: {
+                    pubKey: drandBeaconInfo.public_key,
+                    genesisTimestamp: BigInt(drandBeaconInfo.genesis_time),
+                    period: BigInt(drandBeaconInfo.period),
+                },
+            },
+        ))
+        consumer = await new AnyrandConsumer__factory(deployer).deploy(await anyrand.getAddress())
+
+        const deadline = BigInt(await time.latest()) + 5n
+        expect(deadline).to.be.gt(drandBeaconInfo.genesis_time)
+        const callbackGasLimit = 500_000
+        const gasPrice = await ethers.provider.getFeeData().then((fee) => fee.gasPrice!)
+        const [requestPrice] = await anyrand.getRequestPrice(callbackGasLimit, {
+            gasPrice,
+        })
+        const requestId = await anyrand.nextRequestId()
+        await consumer.getRandom(deadline, callbackGasLimit, {
+            value: requestPrice,
+            gasPrice,
+        })
+
+        const round = getRound(
+            BigInt(drandBeaconInfo.genesis_time),
+            deadline,
+            BigInt(drandBeaconInfo.period),
+        )
+        let targetRound: DrandBeaconRound
+        for (;;) {
+            console.log(`Waiting for round ${round}...`)
+            await new Promise((resolve) => setTimeout(resolve, drandBeaconInfo.period * 2 * 1000))
+            try {
+                targetRound = await getDrandBeaconRound('evmnet', Number(round))
+                break
+            } catch (e) {
+                console.log(`Still waiting...`)
+                continue
+            }
+        }
+
+        const signature = bn254.G1.ProjectivePoint.fromHex(targetRound.signature).toAffine()
+        await expect(
+            anyrand.fulfillRandomness(
+                requestId,
+                await consumer.getAddress(),
+                await drandBeacon.publicKeyHash(),
+                round,
+                callbackGasLimit,
+                [signature.x, signature.y],
+            ),
+        ).to.emit(anyrand, 'RandomnessFulfilled')
+    }).timeout(180_000)
 
     it('computes request price on OP chains', async () => {
         // Setup mock GasPriceOracle predeploy
