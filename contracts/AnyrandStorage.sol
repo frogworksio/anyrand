@@ -25,6 +25,8 @@ abstract contract AnyrandStorage is IAnyrand {
         mapping(uint256 requestId => bytes32 requestHash) requests;
         /// @notice Gas station
         address gasStation;
+        /// @notice Maximum effective gas price (in wei) for requests
+        uint256 maxFeePerGas;
     }
 
     /// @notice Get contract storage
@@ -61,5 +63,9 @@ abstract contract AnyrandStorage is IAnyrand {
 
     function gasStation() external view returns (address) {
         return _getMainStorage().gasStation;
+    }
+
+    function maxFeePerGas() external view returns (uint256) {
+        return _getMainStorage().maxFeePerGas;
     }
 }

@@ -23,6 +23,7 @@ interface IAnyrand is ITypeAndVersion {
     event MaxCallbackGasLimitUpdated(uint256 newMaxCallbackGasLimit);
     event MaxDeadlineDeltaUpdated(uint256 maxDeadlineDelta);
     event GasStationUpdated(address indexed newGasStation);
+    event MaxFeePerGasUpdated(uint256 maxFeePerGas);
 
     error TransferFailed(address to, uint256 value);
     error IncorrectPayment(uint256 got, uint256 want);
@@ -31,10 +32,6 @@ interface IAnyrand is ITypeAndVersion {
     error InvalidDeadline(uint256 deadline);
     error InsufficientGas();
     error InvalidBeacon(address beacon);
-    error EffectiveFeePerGasTooHigh(
-        uint256 effectiveFeePerGas,
-        uint256 maxFeePerGas
-    );
 
     /// @notice Compute the total request price
     /// @param callbackGasLimit The callback gas limit that will be used for
@@ -51,7 +48,6 @@ interface IAnyrand is ITypeAndVersion {
     /// @param callbackGasLimit Gas limit for callback
     function requestRandomness(
         uint256 deadline,
-        uint256 callbackGasLimit,
-        uint256 maxFeePerGas
+        uint256 callbackGasLimit
     ) external payable returns (uint256);
 }

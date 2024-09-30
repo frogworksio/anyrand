@@ -8,7 +8,7 @@ import {
     GasStationEthereum__factory,
 } from '../typechain-types'
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
-import { getBytes, keccak256, parseEther } from 'ethers'
+import { getBytes, keccak256, parseEther, parseUnits } from 'ethers'
 
 export type G1 = typeof bn254.G1.ProjectivePoint.BASE
 export type G2 = typeof bn254.G2.ProjectivePoint.BASE
@@ -27,6 +27,7 @@ export interface AnyrandStackConfig {
     maxCallbackGasLimit?: bigint
     maxDeadlineDelta?: bigint
     gasStation?: `0x${string}`
+    maxFeePerGas?: bigint
 }
 
 export async function deployAnyrandStack(config: AnyrandStackConfig) {
@@ -60,6 +61,7 @@ export async function deployAnyrandStack(config: AnyrandStackConfig) {
         config.maxCallbackGasLimit || 2_000_000,
         config.maxDeadlineDelta || 1800,
         await gasStation.getAddress(),
+        config.maxFeePerGas || parseUnits('5', 'gwei'),
     ]
     const anyrandImpl = await new AnyrandHarness__factory(config.deployer).deploy()
     const anyrandProxy = await new ERC1967Proxy__factory(config.deployer).deploy(

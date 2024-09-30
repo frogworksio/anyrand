@@ -142,18 +142,25 @@ describe('Anyrand e2e', () => {
             anyrandImpl.interface.encodeFunctionData('init', args as any),
         )
         const anyrandOptimism = Anyrand__factory.connect(await anyrandProxy.getAddress(), deployer)
+        const gasPrice = await ethers.provider.getFeeData().then((fee) => fee.gasPrice!)
         // Bedrock
-        const [bedrockRequestPrice] = await anyrandOptimism.getRequestPrice(500_000)
+        const [bedrockRequestPrice] = await anyrandOptimism.getRequestPrice(500_000, {
+            gasPrice,
+        })
         console.log(`Bedrock request price: ${formatEther(bedrockRequestPrice)}`)
         expect(bedrockRequestPrice).to.be.gt(0)
         // Ecotone
         await gasPriceOracle.setEcotone()
-        const [ecotoneRequestPrice] = await anyrandOptimism.getRequestPrice(500_000)
+        const [ecotoneRequestPrice] = await anyrandOptimism.getRequestPrice(500_000, {
+            gasPrice,
+        })
         console.log(`Ecotone request price: ${formatEther(ecotoneRequestPrice)}`)
         expect(ecotoneRequestPrice).to.be.gt(0)
         // Fjord
         await gasPriceOracle.setFjord()
-        const [fjordRequestPrice] = await anyrandOptimism.getRequestPrice(500_000)
+        const [fjordRequestPrice] = await anyrandOptimism.getRequestPrice(500_000, {
+            gasPrice,
+        })
         console.log(`Fjord request price: ${formatEther(fjordRequestPrice)}`)
         expect(fjordRequestPrice).to.be.gt(0)
     })

@@ -23,11 +23,12 @@ contract ReentrantRequester is IRandomiserCallback {
     /// @notice Request a random number, calling back to this contract
     function getRandom(uint256 deadline, uint256 callbackGasLimit) public {
         require(deadline > block.timestamp, "Deadline is in the past");
-        (uint256 requestPrice, uint256 effectiveFeePerGas) = Anyrand(anyrand)
-            .getRequestPrice(callbackGasLimit);
+        (uint256 requestPrice, ) = Anyrand(anyrand).getRequestPrice(
+            callbackGasLimit
+        );
         uint256 requestId = Anyrand(anyrand).requestRandomness{
             value: requestPrice
-        }(deadline, callbackGasLimit, effectiveFeePerGas);
+        }(deadline, callbackGasLimit);
         randomness[requestId] = 1;
     }
 
@@ -58,10 +59,6 @@ contract ReentrantRequester is IRandomiserCallback {
         require(randomness[requestId] == 1, "Unknown requestId");
         randomness[requestId] = randomWords[0];
         // Try to reenter
-        Anyrand(anyrand).requestRandomness(
-            block.timestamp + 100,
-            500_000,
-            type(uint256).max
-        );
+        Anyrand(anyrand).requestRandomness(block.timestamp + 100, 500_000);
     }
 }

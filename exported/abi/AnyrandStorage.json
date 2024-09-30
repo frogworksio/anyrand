@@ -3,22 +3,6 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "effectiveFeePerGas",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxFeePerGas",
-        "type": "uint256"
-      }
-    ],
-    "name": "EffectiveFeePerGasTooHigh",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
         "name": "got",
         "type": "uint256"
       },
@@ -159,6 +143,19 @@
       }
     ],
     "name": "MaxDeadlineDeltaUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxFeePerGas",
+        "type": "uint256"
+      }
+    ],
+    "name": "MaxFeePerGasUpdated",
     "type": "event"
   },
   {
@@ -333,6 +330,19 @@
   },
   {
     "inputs": [],
+    "name": "maxFeePerGas",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "nextRequestId",
     "outputs": [
       {
@@ -367,11 +377,6 @@
       {
         "internalType": "uint256",
         "name": "callbackGasLimit",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxFeePerGas",
         "type": "uint256"
       }
     ],

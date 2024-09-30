@@ -32,8 +32,9 @@ const config: HardhatUserConfig = {
             blockGasLimit: 30_000_000,
             accounts: {
                 count: 10,
+                accountsBalance: '1000000000000000000000000',
             },
-            gasPrice: 1e9,
+            initialBaseFeePerGas: 1,
         },
         scroll: {
             chainId: 534352,

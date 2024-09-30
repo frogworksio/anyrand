@@ -40,12 +40,14 @@ contract Anyrand is
     /// @param maxCallbackGasLimit_ The maximum callback gas limit
     /// @param maxDeadlineDelta_ The maximum deadline delta
     /// @param gasStation_ The address of the gas station
+    /// @param maxFeePerGas_ The maximum effective fee per gas for requests
     function init(
         address beacon_,
         uint256 requestPremiumBps_,
         uint256 maxCallbackGasLimit_,
         uint256 maxDeadlineDelta_,
-        address gasStation_
+        address gasStation_,
+        uint256 maxFeePerGas_
     ) public initializer {
         __UUPSUpgradeable_init();
         // OwnableRoles
@@ -66,6 +68,9 @@ contract Anyrand is
 
         $.gasStation = gasStation_;
         emit GasStationUpdated(gasStation_);
+
+        $.maxFeePerGas = maxFeePerGas_;
+        emit MaxFeePerGasUpdated(maxFeePerGas_);
     }
 
     /// @inheritdoc UUPSUpgradeable
@@ -141,24 +146,24 @@ contract Anyrand is
     ///     future round) will be used as the round from which to derive
     ///     randomness.
     /// @param callbackGasLimit Gas limit for callback
-    /// @param maxFeePerGas The maximum effective fee per gas that the
-    ///     requester is willing to pay (excluding premium).
     function requestRandomness(
         uint256 deadline,
-        uint256 callbackGasLimit,
-        uint256 maxFeePerGas
+        uint256 callbackGasLimit
     ) external payable override nonReentrant returns (uint256) {
         (uint256 reqPrice, uint256 effectiveFeePerGas) = getRequestPrice(
             callbackGasLimit
         );
-        if (effectiveFeePerGas > maxFeePerGas) {
-            revert EffectiveFeePerGasTooHigh(effectiveFeePerGas, maxFeePerGas);
+        MainStorage storage $ = _getMainStorage();
+        if (effectiveFeePerGas > $.maxFeePerGas) {
+            // Cap gas price at maxFeePerGas (keeper will only fulfill when gas
+            // price <= maxFeePerGas)
+            // Importantly, fulfillment is permissionless, so it's possible to
+            reqPrice = $.maxFeePerGas * callbackGasLimit;
         }
         if (msg.value != reqPrice) {
             revert IncorrectPayment(msg.value, reqPrice);
         }
 
-        MainStorage storage $ = _getMainStorage();
         if (callbackGasLimit > $.maxCallbackGasLimit) {
             revert OverGasLimit(callbackGasLimit);
         }
