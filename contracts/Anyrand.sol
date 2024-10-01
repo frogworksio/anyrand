@@ -134,7 +134,7 @@ contract Anyrand is
         (uint256 rawTxCost, uint256 effectiveFeePerGas) = IGasStation(
             $.gasStation
         ).getTxCost(
-                215_000 /** fulfillRandomness overhead */ + callbackGasLimit
+                200_000 /** fulfillRandomness overhead */ + callbackGasLimit
             );
         uint256 premium = (rawTxCost * $.requestPremiumBps) / 1e4;
         return (rawTxCost + premium, effectiveFeePerGas);

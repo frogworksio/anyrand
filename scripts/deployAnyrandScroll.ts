@@ -12,7 +12,7 @@ const MAX_CALLBACK_GAS_LIMIT = 2_500_000n
 const MAX_DEADLINE_DELTA = 5n * 60n // 5 minutes
 const MAX_FEE_PER_GAS = parseUnits('10', 'gwei')
 
-const DEPLOYMENT_VERSION = '0_0_0-test'
+const DEPLOYMENT_VERSION = '0_0_1-test'
 
 async function getDeploymentId() {
     const chainId = await ethers.provider.getNetwork().then((network) => network.chainId)
