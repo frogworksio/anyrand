@@ -6,10 +6,12 @@ import {ITypeAndVersion} from "./ITypeAndVersion.sol";
 interface IAnyrand is ITypeAndVersion {
     event RandomnessRequested(
         uint256 indexed requestId,
-        address requester,
+        address indexed requester,
+        bytes32 indexed pubKeyHash,
         uint256 round,
         uint256 callbackGasLimit,
-        uint256 feePaid
+        uint256 feePaid,
+        uint256 effectiveFeePerGas
     );
     event RandomnessFulfilled(
         uint256 indexed requestId,

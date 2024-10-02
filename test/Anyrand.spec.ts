@@ -43,6 +43,7 @@ describe('Anyrand', () => {
     let consumer: AnyrandConsumer
     let beaconPubKey: G2
     let beaconSecretKey: Uint8Array
+    let pubKeyHash: string
     let beaconPeriod = 1n
     let beaconGenesisTimestamp = 1702549672n
     let gasStation: GasStationEthereum
@@ -61,6 +62,7 @@ describe('Anyrand', () => {
                 },
             },
         ))
+        pubKeyHash = await drandBeacon.publicKeyHash()
         consumer = await new AnyrandConsumer__factory(deployer).deploy(await anyrand.getAddress())
     })
 
@@ -199,6 +201,7 @@ describe('Anyrand', () => {
     describe('requestRandomness', () => {
         let gasPrice: bigint
         let requestPrice: bigint
+        let effectiveFeePerGas: bigint
         let callbackGasLimit: bigint
         beforeEach(async () => {
             ;({ gasPrice } = await ethers.provider.getFeeData().then((res) => ({
@@ -207,7 +210,7 @@ describe('Anyrand', () => {
                 maxPriorityFeePerGas: res.maxPriorityFeePerGas!,
             })))
             callbackGasLimit = 100_000n
-            ;[requestPrice] = await anyrand.getRequestPrice(callbackGasLimit, {
+            ;[requestPrice, effectiveFeePerGas] = await anyrand.getRequestPrice(callbackGasLimit, {
                 gasPrice,
             })
         })
@@ -225,9 +228,11 @@ describe('Anyrand', () => {
                 .withArgs(
                     requestId,
                     deployer.address,
+                    pubKeyHash,
                     getRound(beaconGenesisTimestamp, deadline, beaconPeriod),
                     callbackGasLimit,
                     requestPrice,
+                    effectiveFeePerGas,
                 )
         })
 
@@ -261,7 +266,15 @@ describe('Anyrand', () => {
                 }),
             )
                 .to.emit(anyrand, 'RandomnessRequested')
-                .withArgs(requestId, deployer.address, round, callbackGasLimit, cappedRequestPrice)
+                .withArgs(
+                    requestId,
+                    deployer.address,
+                    pubKeyHash,
+                    round,
+                    callbackGasLimit,
+                    cappedRequestPrice,
+                    maxFeePerGas,
+                )
 
             if (isCoverage) {
                 // solidity-coverage sets gas to 1 wei
@@ -363,13 +376,14 @@ describe('Anyrand', () => {
     describe('fulfillRandomness', () => {
         let gasPrice: bigint
         let requestPrice: bigint
+        let effectiveFeePerGas: bigint
         let callbackGasLimit: bigint
         beforeEach(async () => {
             ;({ gasPrice } = await ethers.provider.getFeeData().then((res) => ({
                 gasPrice: res.gasPrice!,
             })))
             callbackGasLimit = 100_000n
-            ;[requestPrice] = await anyrand.getRequestPrice(callbackGasLimit, {
+            ;[requestPrice, effectiveFeePerGas] = await anyrand.getRequestPrice(callbackGasLimit, {
                 gasPrice,
             })
         })
@@ -394,9 +408,11 @@ describe('Anyrand', () => {
                 .withArgs(
                     requestId,
                     await consumer.getAddress(),
+                    pubKeyHash,
                     round,
                     callbackGasLimit,
                     requestPrice,
+                    effectiveFeePerGas,
                 )
 
             // Fulfill
@@ -480,9 +496,11 @@ describe('Anyrand', () => {
                 .withArgs(
                     requestId,
                     await consumer.getAddress(),
+                    pubKeyHash,
                     round,
                     callbackGasLimit,
                     requestPrice,
+                    effectiveFeePerGas,
                 )
 
             // Fulfill with request details that hash to something unexpected
@@ -553,9 +571,11 @@ describe('Anyrand', () => {
                 .withArgs(
                     requestId,
                     await requester.getAddress(),
+                    pubKeyHash,
                     round,
                     callbackGasLimit,
                     requestPrice,
+                    effectiveFeePerGas,
                 )
 
             // Fulfill

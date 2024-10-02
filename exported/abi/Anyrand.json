@@ -358,10 +358,16 @@
         "type": "uint256"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
         "name": "requester",
         "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "pubKeyHash",
+        "type": "bytes32"
       },
       {
         "indexed": false,
@@ -379,6 +385,12 @@
         "indexed": false,
         "internalType": "uint256",
         "name": "feePaid",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "effectiveFeePerGas",
         "type": "uint256"
       }
     ],

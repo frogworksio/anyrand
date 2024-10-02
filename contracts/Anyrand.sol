@@ -159,6 +159,7 @@ contract Anyrand is
             // price <= maxFeePerGas)
             // Importantly, fulfillment is permissionless, so it's possible to
             reqPrice = $.maxFeePerGas * callbackGasLimit;
+            effectiveFeePerGas = $.maxFeePerGas;
         }
         if (msg.value != reqPrice) {
             revert IncorrectPayment(msg.value, reqPrice);
@@ -199,9 +200,11 @@ contract Anyrand is
         emit RandomnessRequested(
             requestId,
             msg.sender,
+            pubKeyHash,
             round,
             callbackGasLimit,
-            reqPrice
+            reqPrice,
+            effectiveFeePerGas
         );
 
         return requestId;
