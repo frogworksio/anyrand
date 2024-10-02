@@ -16,9 +16,15 @@ interface IAnyrand is ITypeAndVersion {
     event RandomnessFulfilled(
         uint256 indexed requestId,
         uint256[] randomWords,
-        bool callbackSuccess
+        bool callbackSuccess,
+        uint256 actualGasUsed
     );
-    event RandomnessCallbackFailed(uint256 indexed requestId, bytes32 retdata);
+    event RandomnessCallbackFailed(
+        uint256 indexed requestId,
+        bytes32 retdata,
+        uint256 gasLimit,
+        uint256 actualGasUsed
+    );
     event RequestPremiumMultiplierUpdated(uint256 newPrice);
     event ETHWithdrawn(uint256 amount);
     event BeaconUpdated(address indexed newBeacon);

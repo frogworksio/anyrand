@@ -25,6 +25,7 @@ import {
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 import { Wallet, ZeroAddress, keccak256, parseEther, parseUnits, randomBytes } from 'ethers'
 import { expect } from 'chai'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { deployAnyrandStack, G2, getHashedRoundMsg, getRound } from './helpers'
 
@@ -369,6 +370,8 @@ describe('Anyrand', () => {
                     requestId,
                     /** ReentrancyGuardReentrantCall() */
                     '0x3ee5aeb500000000000000000000000000000000000000000000000000000000',
+                    callbackGasLimit,
+                    (x: bigint) => x <= callbackGasLimit,
                 )
         })
     })
@@ -441,7 +444,7 @@ describe('Anyrand', () => {
                 ),
             )
                 .to.emit(anyrand, 'RandomnessFulfilled')
-                .withArgs(requestId, [randomness], true)
+                .withArgs(requestId, [randomness], true, (x: bigint) => x <= callbackGasLimit)
         })
 
         it('should revert if callback tries to reenter fulfillRandomness', async () => {
@@ -473,6 +476,8 @@ describe('Anyrand', () => {
                     requestId,
                     /** ReentrancyGuardReentrantCall() */
                     '0x3ee5aeb500000000000000000000000000000000000000000000000000000000',
+                    callbackGasLimit,
+                    (x: bigint) => x <= callbackGasLimit,
                 )
         })
 
@@ -594,6 +599,8 @@ describe('Anyrand', () => {
                     requestId,
                     /** AlwaysBeErroring() */
                     '0x3166292600000000000000000000000000000000000000000000000000000000',
+                    callbackGasLimit,
+                    (x: bigint) => x <= callbackGasLimit,
                 )
         })
     })

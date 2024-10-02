@@ -318,6 +318,18 @@
         "internalType": "bytes32",
         "name": "retdata",
         "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "gasLimit",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "actualGasUsed",
+        "type": "uint256"
       }
     ],
     "name": "RandomnessCallbackFailed",
@@ -343,6 +355,12 @@
         "internalType": "bool",
         "name": "callbackSuccess",
         "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "actualGasUsed",
+        "type": "uint256"
       }
     ],
     "name": "RandomnessFulfilled",

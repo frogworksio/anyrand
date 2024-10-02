@@ -210,6 +210,23 @@ contract Anyrand is
         return requestId;
     }
 
+    /// @notice Call a function, forwarding an exact amount of gas, whilst also
+    ///     measuring how much gas was actually used.
+    /// @param callbackGasLimit The amount of gas to use
+    /// @param target The address to call
+    /// @param data The data to send
+    /// @return success Whether the call succeeded
+    /// @return gasUsed The amount of gas used
+    function _callWithExactGas(
+        uint256 callbackGasLimit,
+        address target,
+        bytes memory data
+    ) private returns (bool success, uint256 gasUsed) {
+        gasUsed = gasleft();
+        success = Gas.callWithExactGas(callbackGasLimit, target, data);
+        gasUsed -= gasleft();
+    }
+
     /// @notice Fulfill a randomness request (for beacon keepers).
     /// @notice Note that fulfilment only depends on the validity of the BLS
     ///     signature over the expected beacon round, and DOES NOT check
@@ -261,7 +278,7 @@ contract Anyrand is
             )
         );
 
-        bool didCallbackSucceed = Gas.callWithExactGas(
+        (bool didCallbackSucceed, uint256 gasUsed) = _callWithExactGas(
             callbackGasLimit,
             requester,
             abi.encodePacked(
@@ -290,10 +307,20 @@ contract Anyrand is
                 returndatacopy(0, 0, min(r, 32))
                 retdata := mload(0)
             }
-            emit RandomnessCallbackFailed(requestId, retdata);
+            emit RandomnessCallbackFailed(
+                requestId,
+                retdata,
+                callbackGasLimit,
+                gasUsed
+            );
         }
 
-        emit RandomnessFulfilled(requestId, randomWords, didCallbackSucceed);
+        emit RandomnessFulfilled(
+            requestId,
+            randomWords,
+            didCallbackSucceed,
+            gasUsed
+        );
     }
 
     /// @notice Set the beacon
