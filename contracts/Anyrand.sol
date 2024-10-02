@@ -57,6 +57,8 @@ contract Anyrand is
 
         _setBeacon(beacon_);
 
+        $.nextRequestId = 1;
+
         $.requestPremiumMultiplierBps = requestPremiumMultiplierBps_;
         emit RequestPremiumMultiplierUpdated(requestPremiumMultiplierBps_);
 
