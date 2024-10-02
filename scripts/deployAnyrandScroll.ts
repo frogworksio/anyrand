@@ -7,10 +7,11 @@ import Anyrand from '../ignition/modules/Anyrand'
 import DrandBeacon from '../ignition/modules/DrandBeacon'
 import GasStationScroll from '../ignition/modules/GasStationScroll'
 import AnyrandConsumer from '../ignition/modules/AnyrandConsumer'
+
 const REQUEST_PREMIUM_BPS = 5000n // 50%
 const MAX_CALLBACK_GAS_LIMIT = 2_500_000n
 const MAX_DEADLINE_DELTA = 5n * 60n // 5 minutes
-const MAX_FEE_PER_GAS = parseUnits('10', 'gwei')
+const MAX_FEE_PER_GAS = parseUnits('50', 'gwei') // Sepolia gas can get crazy
 
 const DEPLOYMENT_VERSION = '0_0_1-test'
 
