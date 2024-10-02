@@ -17,7 +17,7 @@ interface IAnyrand is ITypeAndVersion {
         bool callbackSuccess
     );
     event RandomnessCallbackFailed(uint256 indexed requestId, bytes32 retdata);
-    event RequestPremiumUpdated(uint256 newPrice);
+    event RequestPremiumMultiplierUpdated(uint256 newPrice);
     event ETHWithdrawn(uint256 amount);
     event BeaconUpdated(address indexed newBeacon);
     event MaxCallbackGasLimitUpdated(uint256 newMaxCallbackGasLimit);

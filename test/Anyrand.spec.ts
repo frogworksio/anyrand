@@ -82,7 +82,9 @@ describe('Anyrand', () => {
             await expect(tx)
                 .to.emit(anyrand, 'BeaconUpdated')
                 .withArgs(await drandBeacon.getAddress())
-            await expect(tx).to.emit(anyrand, 'RequestPremiumUpdated').withArgs(anyrandArgs[1])
+            await expect(tx)
+                .to.emit(anyrand, 'RequestPremiumMultiplierUpdated')
+                .withArgs(anyrandArgs[1])
             await expect(tx).to.emit(anyrand, 'MaxCallbackGasLimitUpdated').withArgs(anyrandArgs[2])
             await expect(tx).to.emit(anyrand, 'MaxDeadlineDeltaUpdated').withArgs(anyrandArgs[3])
             await expect(tx)
@@ -618,18 +620,38 @@ describe('Anyrand', () => {
         })
     })
 
-    describe('setRequestPremiumBps', () => {
+    describe('setRequestPremiumMultiplierBps', () => {
         it('should set the base request price if caller has CONFIGURATOR_ROLE', async () => {
             await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
-            await anyrand.setRequestPremiumBps(20_00) // 20%
-            expect(await anyrand.requestPremiumBps()).to.eq(20_00)
+            await anyrand.setRequestPremiumMultiplierBps(120_00) // 120%
+            expect(await anyrand.requestPremiumMultiplierBps()).to.eq(120_00)
+            const gasPrice = await ethers.provider.getFeeData().then((res) => res.gasPrice!)
+            const [requestPrice120] = await anyrand.getRequestPrice(100_000n, {
+                gasPrice,
+            })
+
+            await anyrand.setRequestPremiumMultiplierBps(60_00) // 60%
+            expect(await anyrand.requestPremiumMultiplierBps()).to.eq(60_00)
+            const [requestPrice60] = await anyrand.getRequestPrice(100_000n, {
+                gasPrice,
+            })
+            expect(requestPrice60 * 2n).to.eq(requestPrice120)
         })
 
         it('should revert if caller does not have CONFIGURATOR_ROLE', async () => {
-            await expect(anyrand.setRequestPremiumBps(20_00)).to.be.revertedWithCustomError(
-                anyrand,
-                'Unauthorized',
-            )
+            await expect(
+                anyrand.setRequestPremiumMultiplierBps(120_00),
+            ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
+        })
+
+        it('should allow free requests if multiplier is 0', async () => {
+            await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
+            await anyrand.setRequestPremiumMultiplierBps(0n)
+            expect(await anyrand.requestPremiumMultiplierBps()).to.eq(0n)
+            const [requestPrice] = await anyrand.getRequestPrice(100_000n, {
+                gasPrice: await ethers.provider.getFeeData().then((res) => res.gasPrice!),
+            })
+            expect(requestPrice).to.eq(0n)
         })
     })
 

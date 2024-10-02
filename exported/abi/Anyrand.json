@@ -395,7 +395,7 @@
         "type": "uint256"
       }
     ],
-    "name": "RequestPremiumUpdated",
+    "name": "RequestPremiumMultiplierUpdated",
     "type": "event"
   },
   {
@@ -678,7 +678,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "requestPremiumBps_",
+        "name": "requestPremiumMultiplierBps_",
         "type": "uint256"
       },
       {
@@ -833,7 +833,7 @@
   },
   {
     "inputs": [],
-    "name": "requestPremiumBps",
+    "name": "requestPremiumMultiplierBps",
     "outputs": [
       {
         "internalType": "uint256",
@@ -980,11 +980,11 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "newRequestPremiumBps",
+        "name": "newRequestPremiumMultiplierBps",
         "type": "uint256"
       }
     ],
-    "name": "setRequestPremiumBps",
+    "name": "setRequestPremiumMultiplierBps",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

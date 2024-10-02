@@ -12,8 +12,8 @@ abstract contract AnyrandStorage is IAnyrand {
     struct MainStorage {
         /// @notice Current beacon
         address beacon;
-        /// @notice The base price of entropy
-        uint256 requestPremiumBps;
+        /// @notice The multiplier applied to the raw tx cost of fulfilment
+        uint256 requestPremiumMultiplierBps;
         /// @notice Maximum callback gas limit
         uint256 maxCallbackGasLimit;
         /// @notice Maximum number of seconds in the future from which randomness
@@ -41,8 +41,8 @@ abstract contract AnyrandStorage is IAnyrand {
         return _getMainStorage().beacon;
     }
 
-    function requestPremiumBps() external view returns (uint256) {
-        return _getMainStorage().requestPremiumBps;
+    function requestPremiumMultiplierBps() external view returns (uint256) {
+        return _getMainStorage().requestPremiumMultiplierBps;
     }
 
     function maxCallbackGasLimit() external view returns (uint256) {

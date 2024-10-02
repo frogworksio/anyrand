@@ -35,15 +35,15 @@ contract Anyrand is
 
     /// @notice Initialise the contract
     /// @param beacon_ The address of contract with drand beacon data
-    /// @param requestPremiumBps_ The percentage charged on top of the raw tx
-    ///     cost, in basis points
+    /// @param requestPremiumMultiplierBps_ The percentage multiplier applied
+    ///     to the raw tx cost
     /// @param maxCallbackGasLimit_ The maximum callback gas limit
     /// @param maxDeadlineDelta_ The maximum deadline delta
     /// @param gasStation_ The address of the gas station
     /// @param maxFeePerGas_ The maximum effective fee per gas for requests
     function init(
         address beacon_,
-        uint256 requestPremiumBps_,
+        uint256 requestPremiumMultiplierBps_,
         uint256 maxCallbackGasLimit_,
         uint256 maxDeadlineDelta_,
         address gasStation_,
@@ -57,8 +57,8 @@ contract Anyrand is
 
         _setBeacon(beacon_);
 
-        $.requestPremiumBps = requestPremiumBps_;
-        emit RequestPremiumUpdated(requestPremiumBps_);
+        $.requestPremiumMultiplierBps = requestPremiumMultiplierBps_;
+        emit RequestPremiumMultiplierUpdated(requestPremiumMultiplierBps_);
 
         $.maxCallbackGasLimit = maxCallbackGasLimit_;
         emit MaxCallbackGasLimitUpdated(maxCallbackGasLimit_);
@@ -136,8 +136,8 @@ contract Anyrand is
         ).getTxCost(
                 200_000 /** fulfillRandomness overhead */ + callbackGasLimit
             );
-        uint256 premium = (rawTxCost * $.requestPremiumBps) / 1e4;
-        return (rawTxCost + premium, effectiveFeePerGas);
+        uint256 totalCost = (rawTxCost * $.requestPremiumMultiplierBps) / 1e4;
+        return (totalCost, effectiveFeePerGas);
     }
 
     /// @notice Request randomness
@@ -321,13 +321,13 @@ contract Anyrand is
     }
 
     /// @notice Update request price
-    /// @param newRequestPremiumBps The new request premium
-    function setRequestPremiumBps(
-        uint256 newRequestPremiumBps
+    /// @param newRequestPremiumMultiplierBps The new request premium multiplier
+    function setRequestPremiumMultiplierBps(
+        uint256 newRequestPremiumMultiplierBps
     ) external onlyRoles(CONFIGURATOR_ROLE) {
         MainStorage storage $ = _getMainStorage();
-        $.requestPremiumBps = newRequestPremiumBps;
-        emit RequestPremiumUpdated(newRequestPremiumBps);
+        $.requestPremiumMultiplierBps = newRequestPremiumMultiplierBps;
+        emit RequestPremiumMultiplierUpdated(newRequestPremiumMultiplierBps);
     }
 
     /// @notice Update max callback gas limit
