@@ -26,6 +26,7 @@ async function main() {
         .fulfillRandomness(
             requestId,
             requester,
+            beaconPubKeyHash,
             round,
             callbackGasLimit,
             decodeG1(beacon.signature),

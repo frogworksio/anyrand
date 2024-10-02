@@ -4,6 +4,7 @@
   "description": "Permissionless verifiable randomness on any EVM",
   "scripts": {
     "gwei": "yarn hardhat run scripts/gwei.ts",
+    "request": "yarn hardhat run scripts/request.ts",
     "deploy:scrollSepolia": "yarn hardhat run scripts/deployAnyrandScroll.ts --network scrollSepolia",
     "deploy:scroll": "yarn hardhat ignition deploy ignition/modules/AnyrandScroll.ts --network scroll --verify",
     "deploy:base": "yarn hardhat ignition deploy ignition/modules/AnyrandOptimism.ts --network base --verify",
