@@ -19,23 +19,25 @@ async function main() {
     ).waitForDeployment()
     const callbackGasLimit = 50_000
 
+    const { maxFeePerGas: _maxFeePerGas } = await ethers.provider.getFeeData()
+    assert(_maxFeePerGas)
+    const maxFeePerGas = (_maxFeePerGas! * 15000n) / 10000n
+    console.log(`Max fee per gas: ${formatUnits(maxFeePerGas, 'gwei')} gwei`)
+
+    const [requestPrice] = await anyrand.getRequestPrice(callbackGasLimit, {
+        gasPrice: maxFeePerGas,
+        blockTag: 'pending',
+    })
+
+    const deadline = Math.floor(Date.now() / 1000) + 120
+
     // Fire off 10 random requests
     for (let i = 0; i < 10; i++) {
         // Fast gas: 150% of estimate
-        const { maxFeePerGas: _maxFeePerGas } = await ethers.provider.getFeeData()
-        assert(_maxFeePerGas)
-        const maxFeePerGas = (_maxFeePerGas! * 15000n) / 10000n
-        console.log(`Max fee per gas: ${formatUnits(maxFeePerGas, 'gwei')} gwei`)
 
-        const [requestPrice] = await anyrand.getRequestPrice(callbackGasLimit, {
-            gasPrice: maxFeePerGas,
-            blockTag: 'pending',
-        })
-
-        const now = Math.floor(Date.now() / 1000)
         // Anywhere from 1-4 minutes
-        const randomMinutes = 60 + Math.floor(Math.random() * 3 * 60)
-        const tx = await consumer.getRandom(now + randomMinutes, callbackGasLimit, {
+        // const randomMinutes = 60 + Math.floor(Math.random() * 3 * 60)
+        const tx = await consumer.getRandom(deadline - 5 * i, callbackGasLimit, {
             value: requestPrice * 2n, // excess will be refunded
             nonce: nonce++,
             maxFeePerGas,
