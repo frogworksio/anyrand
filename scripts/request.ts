@@ -19,9 +19,11 @@ async function main() {
     ).waitForDeployment()
     const callbackGasLimit = 50_000
 
-    const { maxFeePerGas: _maxFeePerGas } = await ethers.provider.getFeeData()
+    const { maxFeePerGas: _maxFeePerGas, maxPriorityFeePerGas: _maxPriorityFeePerGas } =
+        await ethers.provider.getFeeData()
     assert(_maxFeePerGas)
     const maxFeePerGas = (_maxFeePerGas! * 15000n) / 10000n
+    const maxPriorityFeePerGas = (_maxPriorityFeePerGas! * 15000n) / 10000n
     console.log(`Max fee per gas: ${formatUnits(maxFeePerGas, 'gwei')} gwei`)
 
     const [requestPrice] = await anyrand.getRequestPrice(callbackGasLimit, {
@@ -41,6 +43,7 @@ async function main() {
             value: requestPrice * 2n, // excess will be refunded
             nonce: nonce++,
             maxFeePerGas,
+            maxPriorityFeePerGas,
         })
         console.log(`Broadcasted tx: ${tx.hash}`)
     }
