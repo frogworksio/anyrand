@@ -5,6 +5,7 @@ import {OwnableRoles} from "solady/src/auth/OwnableRoles.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Gas} from "./lib/Gas.sol";
+import {ITypeAndVersion} from "./interfaces/ITypeAndVersion.sol";
 import {IRandomiserCallbackV3} from "./interfaces/IRandomiserCallbackV3.sol";
 import {AnyrandStorage} from "./AnyrandStorage.sol";
 import {IGasStation} from "./interfaces/IGasStation.sol";
@@ -16,6 +17,7 @@ import {IDrandBeacon} from "./interfaces/IDrandBeacon.sol";
 ///     a drand (https://drand.love) beacon.
 contract Anyrand is
     AnyrandStorage,
+    ITypeAndVersion,
     OwnableRoles,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8;
 
-import {ITypeAndVersion} from "./ITypeAndVersion.sol";
-
-interface IAnyrand is ITypeAndVersion {
+interface IAnyrand {
     event RandomnessRequested(
         uint256 indexed requestId,
         address indexed requester,
