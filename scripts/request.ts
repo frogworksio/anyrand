@@ -45,7 +45,8 @@ async function main() {
             maxFeePerGas,
             maxPriorityFeePerGas,
         })
-        console.log(`Broadcasted tx: ${tx.hash}`)
+        const receipt = await tx.wait(1)
+        console.log(`Broadcasted tx: ${tx.hash}, mined in block ${receipt?.blockNumber}`)
     }
 }
 
