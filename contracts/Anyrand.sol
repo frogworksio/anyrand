@@ -5,7 +5,7 @@ import {OwnableRoles} from "solady/src/auth/OwnableRoles.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Gas} from "./lib/Gas.sol";
-import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
+import {IRandomiserCallbackV3} from "./interfaces/IRandomiserCallbackV3.sol";
 import {AnyrandStorage} from "./AnyrandStorage.sol";
 import {IGasStation} from "./interfaces/IGasStation.sol";
 import {IDrandBeacon} from "./interfaces/IDrandBeacon.sol";
@@ -284,7 +284,7 @@ contract Anyrand is
             callbackGasLimit,
             requester,
             abi.encodePacked(
-                IRandomiserCallback.receiveRandomWords.selector,
+                IRandomiserCallbackV3.receiveRandomness.selector,
                 abi.encode(requestId, randomWords)
             )
         );

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.23;
 
-import {IRandomiserCallback} from "../interfaces/IRandomiserCallback.sol";
+import {IRandomiserCallbackV3} from "../interfaces/IRandomiserCallbackV3.sol";
 import {Anyrand} from "../Anyrand.sol";
 
 /// @title ReentrantRequester
-contract ReentrantRequester is IRandomiserCallback {
+contract ReentrantRequester is IRandomiserCallbackV3 {
     /// @notice Anyrand instance
     address public immutable anyrand;
     /// @notice Recorded randomness. A special value of 1 means the request is
@@ -50,14 +50,11 @@ contract ReentrantRequester is IRandomiserCallback {
         );
     }
 
-    /// @notice See {IRandomiserCallback-receiveRandomWords}
-    function receiveRandomWords(
-        uint256 requestId,
-        uint256[] calldata randomWords
-    ) external {
+    /// @notice See {IRandomiserCallbackV3-receiveRandomness}
+    function receiveRandomness(uint256 requestId, uint256 randomWord) external {
         require(msg.sender == anyrand, "Only callable by Anyrand");
         require(randomness[requestId] == 1, "Unknown requestId");
-        randomness[requestId] = randomWords[0];
+        randomness[requestId] = randomWord;
         // Try to reenter
         Anyrand(anyrand).requestRandomness(block.timestamp + 100, 500_000);
     }

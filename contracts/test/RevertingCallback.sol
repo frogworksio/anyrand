@@ -2,11 +2,11 @@
 pragma solidity 0.8.23;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IRandomiserCallback} from "../interfaces/IRandomiserCallback.sol";
+import {IRandomiserCallbackV3} from "../interfaces/IRandomiserCallbackV3.sol";
 import {Anyrand} from "../Anyrand.sol";
 
 /// @title RevertingCallback
-contract RevertingCallback is Ownable, IRandomiserCallback {
+contract RevertingCallback is Ownable, IRandomiserCallbackV3 {
     /// @notice Anyrand instance
     address public immutable anyrand;
     /// @notice Recorded randomness. A special value of 1 means the request is
@@ -42,8 +42,8 @@ contract RevertingCallback is Ownable, IRandomiserCallback {
         randomness[requestId] = 1;
     }
 
-    /// @notice See {IRandomiserCallback-receiveRandomWords}
-    function receiveRandomWords(uint256, uint256[] calldata) external {
+    /// @notice See {IRandomiserCallbackV3-receiveRandomness}
+    function receiveRandomness(uint256, uint256) external {
         revert AlwaysBeErroring();
     }
 }
