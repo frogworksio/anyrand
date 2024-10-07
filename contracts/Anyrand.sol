@@ -268,8 +268,7 @@ contract Anyrand is
         IDrandBeacon($.beacon).verifyBeaconRound(round, signature);
 
         // Derive randomness from the signature
-        uint256[] memory randomWords = new uint256[](1);
-        randomWords[0] = uint256(
+        uint256 randomness = uint256(
             keccak256(
                 abi.encode(
                     signature[0] /** entropy */,
@@ -287,7 +286,7 @@ contract Anyrand is
             requester,
             abi.encodePacked(
                 IRandomiserCallbackV3.receiveRandomness.selector,
-                abi.encode(requestId, randomWords)
+                abi.encode(requestId, randomness)
             )
         );
         if (!didCallbackSucceed) {
@@ -321,7 +320,7 @@ contract Anyrand is
 
         emit RandomnessFulfilled(
             requestId,
-            randomWords,
+            randomness,
             didCallbackSucceed,
             gasUsed
         );

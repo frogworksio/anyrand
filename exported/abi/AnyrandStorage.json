@@ -200,9 +200,9 @@
       },
       {
         "indexed": false,
-        "internalType": "uint256[]",
-        "name": "randomWords",
-        "type": "uint256[]"
+        "internalType": "uint256",
+        "name": "randomness",
+        "type": "uint256"
       },
       {
         "indexed": false,

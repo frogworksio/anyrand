@@ -444,7 +444,8 @@ describe('Anyrand', () => {
                 ),
             )
                 .to.emit(anyrand, 'RandomnessFulfilled')
-                .withArgs(requestId, [randomness], true, (x: bigint) => x <= callbackGasLimit)
+                .withArgs(requestId, randomness, true, (x: bigint) => x <= callbackGasLimit)
+            expect(await consumer.randomness(requestId)).to.eq(randomness)
         })
 
         it('should revert if callback tries to reenter fulfillRandomness', async () => {

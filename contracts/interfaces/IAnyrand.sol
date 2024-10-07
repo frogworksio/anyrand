@@ -13,7 +13,7 @@ interface IAnyrand {
     );
     event RandomnessFulfilled(
         uint256 indexed requestId,
-        uint256[] randomWords,
+        uint256 randomness,
         bool callbackSuccess,
         uint256 actualGasUsed
     );
