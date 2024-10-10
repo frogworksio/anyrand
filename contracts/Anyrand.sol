@@ -132,6 +132,15 @@ contract Anyrand is
                 200_000 /** fulfillRandomness overhead */ + callbackGasLimit
             );
         uint256 totalCost = (rawTxCost * $.requestPremiumMultiplierBps) / 1e4;
+        if (effectiveFeePerGas > $.maxFeePerGas) {
+            // Cap gas price at maxFeePerGas (keeper will only fulfill when gas
+            // price <= maxFeePerGas)
+            // Importantly, fulfilment is permissionless, so it's possible to
+            // override this behaviour and fulfill randomness even when the
+            // keeper refuses to.
+            totalCost = $.maxFeePerGas * callbackGasLimit;
+            effectiveFeePerGas = $.maxFeePerGas;
+        }
         return (totalCost, effectiveFeePerGas);
     }
 
@@ -151,19 +160,11 @@ contract Anyrand is
         (uint256 reqPrice, uint256 effectiveFeePerGas) = getRequestPrice(
             callbackGasLimit
         );
-        MainStorage storage $ = _getMainStorage();
-        if (effectiveFeePerGas > $.maxFeePerGas) {
-            // Cap gas price at maxFeePerGas (keeper will only fulfill when gas
-            // price <= maxFeePerGas)
-            // Importantly, fulfilment is permissionless, so it's possible to
-            // override this behaviour and fulfill randomness even when the
-            // keeper refuses to.
-            reqPrice = $.maxFeePerGas * callbackGasLimit;
-            effectiveFeePerGas = $.maxFeePerGas;
-        }
         if (msg.value != reqPrice) {
             revert IncorrectPayment(msg.value, reqPrice);
         }
+
+        MainStorage storage $ = _getMainStorage();
         if (callbackGasLimit > $.maxCallbackGasLimit) {
             revert OverGasLimit(callbackGasLimit);
         }

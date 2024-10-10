@@ -247,13 +247,16 @@ describe('Anyrand', () => {
 
             // Request must always succeed, even if gas price is above maxFeePerGas
             const callbackGasLimit = 100_000n
-            const [, effectiveGasPrice] = await anyrand.getRequestPrice(callbackGasLimit, {
-                gasPrice,
-            })
+            const [cappedRequestPrice, effectiveGasPrice] = await anyrand.getRequestPrice(
+                callbackGasLimit,
+                {
+                    gasPrice,
+                },
+            )
             const maxFeePerGas = await anyrand.maxFeePerGas()
-            expect(effectiveGasPrice).to.be.gt(maxFeePerGas)
+            expect(effectiveGasPrice).to.eq(maxFeePerGas) // capped
+            expect(cappedRequestPrice).to.eq(maxFeePerGas * callbackGasLimit)
 
-            const cappedRequestPrice = maxFeePerGas * callbackGasLimit
             const deadline = BigInt(await time.latest()) + 31n
             const requestId = await anyrand.nextRequestId()
             const round = getRound(beaconGenesisTimestamp, deadline, beaconPeriod)

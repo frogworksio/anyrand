@@ -13,7 +13,7 @@ const MAX_CALLBACK_GAS_LIMIT = 2_500_000n
 const MAX_DEADLINE_DELTA = 5n * 60n // 5 minutes
 const MAX_FEE_PER_GAS = parseUnits('50', 'gwei') // Sepolia gas can get crazy
 
-const DEPLOYMENT_VERSION = '0_0_3-test'
+const DEPLOYMENT_VERSION = '1_0_0-test_1'
 
 async function getDeploymentId() {
     const chainId = await ethers.provider.getNetwork().then((network) => network.chainId)
