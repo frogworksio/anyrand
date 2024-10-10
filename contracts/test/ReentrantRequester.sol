@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
 import {IRandomiserCallbackV3} from "../interfaces/IRandomiserCallbackV3.sol";
