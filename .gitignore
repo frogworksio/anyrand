@@ -14,7 +14,6 @@ cache
 artifacts
 !ignition/**/*
 
-# Noir
-circuits/proofs/
-circuits/target/
-crs/
+# Echidna
+crytic-export
+corpus
