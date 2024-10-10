@@ -2,6 +2,18 @@
 pragma solidity ^0.8;
 
 interface IAnyrand {
+    /// @notice State of a request
+    enum RequestState {
+        /// @notice The request does not exist
+        Nonexistent,
+        /// @notice A request has been made, waiting for fulfilment
+        Pending,
+        /// @notice The request has been fulfilled successfully
+        Fulfilled,
+        /// @notice The request was fulfilled, but the callback failed
+        Failed
+    }
+
     event RandomnessRequested(
         uint256 indexed requestId,
         address indexed requester,
@@ -38,6 +50,7 @@ interface IAnyrand {
     error InvalidDeadline(uint256 deadline);
     error InsufficientGas();
     error InvalidBeacon(address beacon);
+    error InvalidRequestState(RequestState state);
 
     /// @notice Compute the total request price
     /// @param callbackGasLimit The callback gas limit that will be used for
@@ -56,4 +69,10 @@ interface IAnyrand {
         uint256 deadline,
         uint256 callbackGasLimit
     ) external payable returns (uint256);
+
+    /// @notice Get the state of a request
+    /// @param requestId The request identifier
+    function getRequestState(
+        uint256 requestId
+    ) external view returns (RequestState);
 }

@@ -56,6 +56,17 @@
   {
     "inputs": [
       {
+        "internalType": "enum IAnyrand.RequestState",
+        "name": "state",
+        "type": "uint8"
+      }
+    ],
+    "name": "InvalidRequestState",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "callbackGasLimit",
         "type": "uint256"
@@ -301,6 +312,25 @@
         "internalType": "uint256",
         "name": "effectiveFeePerGas",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "requestId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRequestState",
+    "outputs": [
+      {
+        "internalType": "enum IAnyrand.RequestState",
+        "name": "",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",

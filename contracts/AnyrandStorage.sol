@@ -27,6 +27,8 @@ abstract contract AnyrandStorage is IAnyrand {
         address gasStation;
         /// @notice Maximum effective gas price (in wei) for requests
         uint256 maxFeePerGas;
+        /// @notice Request states
+        mapping(uint256 requestId => RequestState state) requestStates;
     }
 
     /// @notice Get contract storage

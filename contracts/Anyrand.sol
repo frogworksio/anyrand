@@ -195,6 +195,8 @@ contract Anyrand is
         }
 
         uint256 requestId = $.nextRequestId++;
+        assert($.requestStates[requestId] == RequestState.Nonexistent);
+        $.requestStates[requestId] = RequestState.Pending;
         $.requests[requestId] = _hashRequest(
             requestId,
             msg.sender,
@@ -252,6 +254,12 @@ contract Anyrand is
         uint256[2] calldata signature
     ) external nonReentrant {
         MainStorage storage $ = _getMainStorage();
+
+        // Ensure the request is in the correct state
+        if ($.requestStates[requestId] != RequestState.Pending) {
+            revert InvalidRequestState($.requestStates[requestId]);
+        }
+
         bytes32 reqHash = _hashRequest(
             requestId,
             requester,
@@ -262,8 +270,8 @@ contract Anyrand is
         if ($.requests[requestId] != reqHash) {
             revert InvalidRequestHash(reqHash);
         }
-        // Nullify the request hash optimistically
-        // Note that we restore this hash if the callback fails.
+
+        // Nullify the request hash
         $.requests[requestId] = bytes32(0);
 
         // Beacon verification
@@ -292,8 +300,8 @@ contract Anyrand is
             )
         );
         if (!didCallbackSucceed) {
-            // Allow the fulfiller to retry this request
-            $.requests[requestId] = reqHash;
+            // The following code is to help debug any issues that occur in the
+            // case that the callback fails.
             bytes32 retdata;
             assembly {
                 function min(a, b) -> c {
@@ -318,6 +326,9 @@ contract Anyrand is
                 callbackGasLimit,
                 gasUsed
             );
+            $.requestStates[requestId] = RequestState.Failed;
+        } else {
+            $.requestStates[requestId] = RequestState.Fulfilled;
         }
 
         emit RandomnessFulfilled(
@@ -326,6 +337,15 @@ contract Anyrand is
             didCallbackSucceed,
             gasUsed
         );
+    }
+
+    /// @notice Get the state of a request
+    /// @param requestId The request identifier
+    function getRequestState(
+        uint256 requestId
+    ) external view returns (RequestState) {
+        MainStorage storage $ = _getMainStorage();
+        return $.requestStates[requestId];
     }
 
     /// @notice Set the beacon

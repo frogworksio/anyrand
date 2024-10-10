@@ -25,9 +25,15 @@ import {
 import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 import { Wallet, ZeroAddress, keccak256, parseEther, parseUnits, randomBytes } from 'ethers'
 import { expect } from 'chai'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { deployAnyrandStack, G2, getHashedRoundMsg, getRound } from './helpers'
+
+enum RequestState {
+    Nonexistent,
+    Pending,
+    Fulfilled,
+    Failed,
+}
 
 const { ethers } = hre
 const isCoverage = Boolean((hre as any).__SOLIDITY_COVERAGE_RUNNING)
@@ -334,12 +340,14 @@ describe('Anyrand', () => {
 
         it('should revert if deadline is not at least one period after current timestamp', async () => {
             const deadline = BigInt(await time.latest()) + beaconPeriod - 1n
+            const requestId = await anyrand.nextRequestId()
             await expect(
                 anyrand.requestRandomness(deadline, callbackGasLimit, {
                     value: requestPrice,
                     gasPrice,
                 }),
             ).to.be.revertedWithCustomError(anyrand, 'InvalidDeadline')
+            expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Nonexistent)
         })
 
         it('should revert if requestRandomness is called reentrantly', async () => {
@@ -373,6 +381,7 @@ describe('Anyrand', () => {
                     callbackGasLimit,
                     (x: bigint) => x <= callbackGasLimit,
                 )
+            expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Failed)
         })
     })
 
@@ -446,6 +455,7 @@ describe('Anyrand', () => {
                 .to.emit(anyrand, 'RandomnessFulfilled')
                 .withArgs(requestId, randomness, true, (x: bigint) => x <= callbackGasLimit)
             expect(await consumer.randomness(requestId)).to.eq(randomness)
+            expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Fulfilled)
         })
 
         it('should revert if callback tries to reenter fulfillRandomness', async () => {
@@ -480,6 +490,7 @@ describe('Anyrand', () => {
                     callbackGasLimit,
                     (x: bigint) => x <= callbackGasLimit,
                 )
+            expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Failed)
         })
 
         it('should revert if request hash is invalid', async () => {
@@ -553,6 +564,8 @@ describe('Anyrand', () => {
                     [signature.x, signature.y],
                 ),
             ).to.be.revertedWithCustomError(anyrand, 'InvalidRequestHash')
+
+            expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Pending)
         })
 
         it('should not revert if callback fails', async () => {
@@ -585,16 +598,15 @@ describe('Anyrand', () => {
                 )
 
             // Fulfill
-            await expect(
-                anyrand.fulfillRandomness(
-                    requestId,
-                    await requester.getAddress(),
-                    pubKeyHash,
-                    round,
-                    callbackGasLimit,
-                    [signature.x, signature.y],
-                ),
-            )
+            const fulfillArgs: Parameters<typeof anyrand.fulfillRandomness> = [
+                requestId,
+                await requester.getAddress(),
+                pubKeyHash,
+                round,
+                callbackGasLimit,
+                [signature.x, signature.y],
+            ]
+            await expect(anyrand.fulfillRandomness(...fulfillArgs))
                 .to.emit(anyrand, 'RandomnessCallbackFailed')
                 .withArgs(
                     requestId,
@@ -603,6 +615,13 @@ describe('Anyrand', () => {
                     callbackGasLimit,
                     (x: bigint) => x <= callbackGasLimit,
                 )
+            expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Failed)
+
+            // It should, however, revert if tried again
+            await expect(anyrand.fulfillRandomness(...fulfillArgs)).to.be.revertedWithCustomError(
+                anyrand,
+                'InvalidRequestState',
+            )
         })
     })
 
