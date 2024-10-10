@@ -1,0 +1,83 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: hardhat tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: install node
+        uses: actions/setup-node@v3
+        with:
+          cache: yarn
+          node-version: 18
+
+      - name: install node deps
+        run: yarn install --frozen-lockfile
+
+      - name: check formatting
+        run: yarn format:check
+
+      - name: build
+        run: yarn build
+
+      - name: test
+        run: yarn test
+
+      - name: slither
+        uses: crytic/slither-action@v0.4.0
+        with:
+          node-version: 18
+          slither-version: 0.10.2
+          solc-version: 0.8.28
+          fail-on: none
+
+  coverage:
+    name: solidity coverage
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: install node
+        uses: actions/setup-node@v3
+        with:
+          cache: yarn
+          node-version: 18
+
+      - name: install node deps
+        run: yarn install --frozen-lockfile
+
+      - name: check formatting
+        run: yarn format:check
+
+      - name: build
+        run: yarn build
+
+      - name: Setup LCOV
+        uses: hrishikesh-kadam/setup-lcov@v1
+
+      - name: coverage
+        run: yarn coverage
+
+      - name: Report code coverage
+        uses: zgosalvez/github-actions-report-lcov@v3
+        with:
+          coverage-files: coverage/lcov.info
+          minimum-coverage: 0
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
