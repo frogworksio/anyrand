@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity 0.8.28;
 
 import {BLS} from "@kevincharm/bls-bn254/contracts/BLS.sol";
 import {SSTORE2} from "solady/src/utils/SSTORE2.sol";

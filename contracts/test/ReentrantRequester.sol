@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.23;
+pragma solidity 0.8.28;
 
 import {IRandomiserCallbackV3} from "../interfaces/IRandomiserCallbackV3.sol";
 import {Anyrand} from "../Anyrand.sol";

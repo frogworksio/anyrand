@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.23;
+pragma solidity 0.8.28;
 
 import {IGasStation} from "../interfaces/IGasStation.sol";
 import {IGasPriceOracle} from "../interfaces/optimism/IGasPriceOracle.sol";
