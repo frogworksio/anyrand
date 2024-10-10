@@ -135,7 +135,8 @@ contract Anyrand is
         return (totalCost, effectiveFeePerGas);
     }
 
-    /// @notice Request randomness
+    /// @notice Request randomness. Note that the fulfilment of the request will
+    ///     always be *after* the deadline, but never before.
     /// @param deadline Timestamp of when the randomness should be fulfilled. A
     ///     beacon round closest to this timestamp (rounding up to the nearest
     ///     future round) will be used as the round from which to derive
@@ -145,6 +146,8 @@ contract Anyrand is
         uint256 deadline,
         uint256 callbackGasLimit
     ) external payable override nonReentrant returns (uint256) {
+        // Compute the total request price (including the premium) that will be
+        // used to cover the keeper's costs
         (uint256 reqPrice, uint256 effectiveFeePerGas) = getRequestPrice(
             callbackGasLimit
         );
@@ -161,15 +164,15 @@ contract Anyrand is
         if (msg.value != reqPrice) {
             revert IncorrectPayment(msg.value, reqPrice);
         }
-
         if (callbackGasLimit > $.maxCallbackGasLimit) {
             revert OverGasLimit(callbackGasLimit);
         }
 
-        bytes32 pubKeyHash;
+        bytes32 pubKeyHash = $.currentBeaconPubKeyHash;
+        // Here we find the nearest round
         uint64 round;
         {
-            IDrandBeacon drandBeacon = IDrandBeacon($.beacon);
+            IDrandBeacon drandBeacon = IDrandBeacon($.beacons[pubKeyHash]);
             pubKeyHash = drandBeacon.publicKeyHash();
             uint256 genesis = drandBeacon.genesisTimestamp();
             uint256 period = drandBeacon.period();
@@ -185,6 +188,7 @@ contract Anyrand is
             round = uint64((delta / period) + (delta % period));
         }
 
+        // Record the commitment of this request
         uint256 requestId = $.nextRequestId++;
         assert($.requestStates[requestId] == RequestState.Nonexistent);
         $.requestStates[requestId] = RequestState.Pending;
@@ -251,6 +255,8 @@ contract Anyrand is
             revert InvalidRequestState($.requestStates[requestId]);
         }
 
+        // The inputs provided by the keeper must match the commitment we
+        // recorded when the request was made.
         bytes32 reqHash = _hashRequest(
             requestId,
             requester,
@@ -262,11 +268,12 @@ contract Anyrand is
             revert InvalidRequestHash(reqHash);
         }
 
-        // Nullify the request hash
+        // Nullify the request hash; fulfilments must never be replayable
         $.requests[requestId] = bytes32(0);
 
-        // Beacon verification
-        IDrandBeacon($.beacon).verifyBeaconRound(round, signature);
+        // Beacon verification: we check that the signature over the round is
+        // valid for the given pubkey.
+        IDrandBeacon($.beacons[pubKeyHash]).verifyBeaconRound(round, signature);
 
         // Derive randomness from the signature
         uint256 randomness = uint256(
@@ -339,26 +346,32 @@ contract Anyrand is
         return $.requestStates[requestId];
     }
 
-    /// @notice Set the beacon
+    /// @notice Add a new beacon and set the current beacon to it
     /// @param newBeacon The new beacon
     function _setBeacon(address newBeacon) internal {
         // Sanity check
-        try IDrandBeacon(newBeacon).publicKey() returns (bytes memory pubKey) {
-            if (pubKey.length == 0) revert InvalidBeacon(newBeacon);
+        try IDrandBeacon(newBeacon).publicKeyHash() returns (
+            bytes32 pubKeyHash
+        ) {
+            if (pubKeyHash == bytes32(0) || pubKeyHash == keccak256(hex"")) {
+                revert InvalidBeacon(newBeacon);
+            }
+
+            // Looks good - add the beacon and update it
+            MainStorage storage $ = _getMainStorage();
+            $.beacons[pubKeyHash] = newBeacon;
+            $.currentBeaconPubKeyHash = pubKeyHash;
+            emit BeaconUpdated(newBeacon);
         } catch {
             revert InvalidBeacon(newBeacon);
         }
-
-        MainStorage storage $ = _getMainStorage();
-        $.beacon = newBeacon;
-        emit BeaconUpdated(newBeacon);
     }
 
     ///////////////////////////////////////////////////////////////////////////
     /// Privileged setters ////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////
 
-    /// @notice Set the beacon (privileged)
+    /// @notice Add a new beacon and set the current beacon to it (privileged)
     /// @param newBeacon The new beacon
     function setBeacon(address newBeacon) external onlyOwner {
         _setBeacon(newBeacon);

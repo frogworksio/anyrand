@@ -466,7 +466,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "pubkeyHash",
+        "type": "bytes32"
+      }
+    ],
     "name": "beacon",
     "outputs": [
       {
@@ -496,6 +502,19 @@
     "name": "completeOwnershipHandover",
     "outputs": [],
     "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "currentBeaconPubKeyHash",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

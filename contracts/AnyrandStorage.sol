@@ -10,8 +10,8 @@ import {IAnyrand} from "./interfaces/IAnyrand.sol";
 abstract contract AnyrandStorage is IAnyrand {
     /// @custom:storage-location erc7201:io.frogworks.anyrand.v1.main_storage
     struct MainStorage {
-        /// @notice Current beacon
-        address beacon;
+        /// @notice Current beacon public key hash
+        bytes32 currentBeaconPubKeyHash;
         /// @notice The multiplier applied to the raw tx cost of fulfilment
         uint256 requestPremiumMultiplierBps;
         /// @notice Maximum callback gas limit
@@ -29,6 +29,8 @@ abstract contract AnyrandStorage is IAnyrand {
         uint256 maxFeePerGas;
         /// @notice Request states
         mapping(uint256 requestId => RequestState state) requestStates;
+        /// @notice Beacons mapped by their public key hash
+        mapping(bytes32 pubkeyHash => address beacon) beacons;
     }
 
     /// @notice Get contract storage
@@ -39,8 +41,12 @@ abstract contract AnyrandStorage is IAnyrand {
         }
     }
 
-    function beacon() external view returns (address) {
-        return _getMainStorage().beacon;
+    function currentBeaconPubKeyHash() external view returns (bytes32) {
+        return _getMainStorage().currentBeaconPubKeyHash;
+    }
+
+    function beacon(bytes32 pubkeyHash) external view returns (address) {
+        return _getMainStorage().beacons[pubkeyHash];
     }
 
     function requestPremiumMultiplierBps() external view returns (uint256) {

@@ -625,17 +625,27 @@ describe('Anyrand', () => {
     describe('setBeacon', () => {
         let newBeacon: DrandBeacon
         beforeEach(async () => {
-            const pkAffine = beaconPubKey.toAffine()
+            const newBeaconSecretKey = bn254.utils.randomPrivateKey()
+            const newBeaconPubKey = bn254.G2.ProjectivePoint.fromPrivateKey(newBeaconSecretKey)
+            const pkAffine = newBeaconPubKey.toAffine()
             newBeacon = await new DrandBeacon__factory(deployer).deploy(
                 [pkAffine.x.c0, pkAffine.x.c1, pkAffine.y.c0, pkAffine.y.c1],
-                beaconGenesisTimestamp,
-                beaconPeriod,
+                Math.floor(Date.now() / 1000),
+                1,
             )
         })
 
-        it('should set the beacon if caller is owner', async () => {
+        it('should set a new beacon if caller is owner', async () => {
+            const currentPubKeyHash = await anyrand.currentBeaconPubKeyHash()
+            const oldBeacon = await anyrand.beacon(currentPubKeyHash)
             await anyrand.setBeacon(await newBeacon.getAddress())
-            expect(await anyrand.beacon()).to.eq(await newBeacon.getAddress())
+            const newPubKeyHash = await newBeacon.publicKeyHash()
+            expect(newPubKeyHash).to.not.eq(currentPubKeyHash)
+            expect(await anyrand.beacon(newPubKeyHash)).to.eq(await newBeacon.getAddress())
+            expect(await anyrand.currentBeaconPubKeyHash()).to.eq(newPubKeyHash)
+
+            // Old beacon should still be queryable (for inflight requests)
+            expect(await anyrand.beacon(currentPubKeyHash)).to.eq(oldBeacon)
         })
 
         it('should revert if caller is not owner', async () => {

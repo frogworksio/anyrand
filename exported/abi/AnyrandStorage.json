@@ -294,13 +294,32 @@
     "type": "event"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "pubkeyHash",
+        "type": "bytes32"
+      }
+    ],
     "name": "beacon",
     "outputs": [
       {
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "currentBeaconPubKeyHash",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
       }
     ],
     "stateMutability": "view",
