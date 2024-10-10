@@ -27,13 +27,7 @@ import { Wallet, ZeroAddress, keccak256, parseEther, parseUnits, randomBytes } f
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { deployAnyrandStack, G2, getHashedRoundMsg, getRound } from './helpers'
-
-enum RequestState {
-    Nonexistent,
-    Pending,
-    Fulfilled,
-    Failed,
-}
+import { RequestState } from '../lib/RequestState'
 
 const { ethers } = hre
 const isCoverage = Boolean((hre as any).__SOLIDITY_COVERAGE_RUNNING)

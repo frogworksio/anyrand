@@ -6,6 +6,7 @@ import {
     AnyrandConsumer__factory,
     Anyrand__factory,
     DrandBeacon,
+    DrandBeacon__factory,
     ERC1967Proxy__factory,
     GasStationEthereum,
     GasStationOptimism__factory,
@@ -15,8 +16,9 @@ import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 import { Wallet, formatEther, formatUnits, getBytes, keccak256, parseEther } from 'ethers'
 import { expect } from 'chai'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
-import { deployAnyrandStack, getRound } from './helpers'
+import { deployAnyrandStack, getHashedRoundMsg, getRound } from './helpers'
 import { DrandBeaconRound, getDrandBeaconInfo, getDrandBeaconRound } from '../lib/drand'
+import { RequestState } from '../lib/RequestState'
 
 const { ethers } = hre
 const isCoverage = Boolean((hre as any).__SOLIDITY_COVERAGE_RUNNING)
@@ -226,5 +228,96 @@ const DST = 'BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_'
         })
         console.log(`Fjord request price: ${formatEther(fjordRequestPrice)}`)
         expect(fjordRequestPrice).to.be.gt(0)
+    })
+
+    it('honours current requests if beacon is upgraded while inflight', async () => {
+        // Make the request
+        const callbackGasLimit = 500_000
+        const gasPrice = await ethers.provider.getFeeData().then((fee) => fee.gasPrice!)
+        const [requestPrice] = await anyrand.getRequestPrice(callbackGasLimit, {
+            gasPrice,
+        })
+        const deadline = BigInt(await time.latest()) + 10n
+        const getRandomTx = await consumer
+            .getRandom(deadline, callbackGasLimit, {
+                value: requestPrice,
+                gasPrice,
+            })
+            .then((tx) => tx.wait(1))
+        const {
+            requestId,
+            requester,
+            round,
+            beaconPubKeyHash: pubKeyHash0,
+        } = anyrand.interface.decodeEventLog(
+            'RandomnessRequested',
+            getRandomTx?.logs[0].data!,
+            getRandomTx?.logs[0].topics,
+        ) as unknown as {
+            requestId: bigint
+            beaconPubKeyHash: string
+            requester: string
+            round: bigint
+        }
+
+        // --- At this point, the request is inflight ---
+        // Now we change the beacon
+        const newBeaconSecretKey = bn254.utils.randomPrivateKey()
+        const newBeaconPubKey = bn254.G2.ProjectivePoint.fromPrivateKey(newBeaconSecretKey)
+        const newBeacon = await new DrandBeacon__factory(deployer).deploy(
+            [
+                newBeaconPubKey.x.c0,
+                newBeaconPubKey.x.c1,
+                newBeaconPubKey.y.c0,
+                newBeaconPubKey.y.c1,
+            ],
+            beaconGenesisTimestamp,
+            beaconPeriod,
+        )
+        const pubKeyHash1 = await newBeacon.publicKeyHash()
+        await anyrand.setBeacon(await newBeacon.getAddress())
+        // Sanity check - we changed the beacon
+        expect(await anyrand.currentBeaconPubKeyHash()).to.eq(pubKeyHash1)
+        expect(await anyrand.beacon(pubKeyHash1)).to.eq(await newBeacon.getAddress())
+        // The current beacon pubkey != the one in the inflight request
+        expect(pubKeyHash0).to.not.eq(pubKeyHash1)
+
+        // Simulate valid drand beacon responses for each beacon
+        const M = getHashedRoundMsg(round)
+        const oldRoundBeacon = {
+            round,
+            signature: bn254.signShortSignature(M, beaconSecretKey).toAffine(),
+        }
+        const newRoundBeacon = {
+            round,
+            signature: bn254.signShortSignature(M, newBeaconSecretKey).toAffine(),
+        }
+
+        // Wait 10s for block timestamp to catchup
+        await time.increase(10)
+
+        // Try to fulfill with new beacon - should revert because this pubKeyHash makes the
+        // request commitment (and therefore the request hash) mismatch
+        await expect(
+            anyrand.fulfillRandomness(requestId, requester, pubKeyHash1, round, callbackGasLimit, [
+                newRoundBeacon.signature.x,
+                newRoundBeacon.signature.y,
+            ]),
+        ).to.be.revertedWithCustomError(anyrand, 'InvalidRequestHash')
+        expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Pending)
+
+        // Fulfill with old beacon - this should succeed
+        const fulfillTx = await anyrand.fulfillRandomness(
+            requestId,
+            requester,
+            await drandBeacon.publicKeyHash(),
+            round,
+            callbackGasLimit,
+            [oldRoundBeacon.signature.x, oldRoundBeacon.signature.y],
+        )
+        expect(fulfillTx).to.emit(anyrand, 'RandomnessFulfilled')
+        expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Fulfilled)
+        const randomness = await consumer.randomness(requestId)
+        expect(randomness).to.not.eq(0)
     })
 })
