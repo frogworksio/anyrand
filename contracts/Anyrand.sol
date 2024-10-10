@@ -373,6 +373,10 @@ contract Anyrand is
     ///////////////////////////////////////////////////////////////////////////
 
     /// @notice Add a new beacon and set the current beacon to it (privileged)
+    /// @notice This is intended to be used only in the case that the evmnet
+    ///     beacon is deprecated in favour of the BLS12-381 beacon.
+    /// @notice NB: This can replace/fix a beacon that is known to this
+    ///     contract by its public key hash.
     /// @param newBeacon The new beacon
     function setBeacon(address newBeacon) external onlyOwner {
         _setBeacon(newBeacon);
