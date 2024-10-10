@@ -155,7 +155,7 @@ contract Anyrand is
         if (effectiveFeePerGas > $.maxFeePerGas) {
             // Cap gas price at maxFeePerGas (keeper will only fulfill when gas
             // price <= maxFeePerGas)
-            // Importantly, fulfillment is permissionless, so it's possible to
+            // Importantly, fulfilment is permissionless, so it's possible to
             // override this behaviour and fulfill randomness even when the
             // keeper refuses to.
             reqPrice = $.maxFeePerGas * callbackGasLimit;

@@ -4,8 +4,8 @@ pragma solidity 0.8.23;
 import {IRandomiserCallbackV3} from "../interfaces/IRandomiserCallbackV3.sol";
 import {Anyrand} from "../Anyrand.sol";
 
-/// @title ReentrantFulfiler
-contract ReentrantFulfiler is IRandomiserCallbackV3 {
+/// @title ReentrantFulfiller
+contract ReentrantFulfiller is IRandomiserCallbackV3 {
     /// @notice Anyrand instance
     address public immutable anyrand;
     /// @notice Recorded randomness. A special value of 1 means the request is

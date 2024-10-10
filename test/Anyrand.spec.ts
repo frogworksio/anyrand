@@ -17,7 +17,7 @@ import {
     ERC1967Proxy__factory,
     GasStationEthereum,
     GasStationEthereum__factory,
-    ReentrantFulfiler__factory,
+    ReentrantFulfiller__factory,
     ReentrantRequester__factory,
     RevertingCallback__factory,
     WhateverBeacon__factory,
@@ -450,7 +450,7 @@ describe('Anyrand', () => {
         })
 
         it('should revert if callback tries to reenter fulfillRandomness', async () => {
-            const reentrantFulfiller = await new ReentrantFulfiler__factory(deployer).deploy(
+            const reentrantFulfiller = await new ReentrantFulfiller__factory(deployer).deploy(
                 await anyrand.getAddress(),
             )
             await setBalance(await reentrantFulfiller.getAddress(), parseEther('10'))
