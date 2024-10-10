@@ -112,15 +112,14 @@ describe('Anyrand', () => {
     })
 
     describe('upgrade', () => {
-        it('should upgrade if called from UPGRADER_ROLE', async () => {
-            await anyrand.grantRoles(deployer.address, await anyrand.UPGRADER_ROLE())
+        it('should upgrade if called by owner', async () => {
             await expect(anyrand.upgradeToAndCall(await anyrandImpl.getAddress(), '0x')).to.not.be
                 .reverted
         })
 
-        it('should revert if called from non-UPGRADER_ROLE', async () => {
+        it('should revert if called by some rando', async () => {
             await expect(
-                anyrand.upgradeToAndCall(await anyrandImpl.getAddress(), '0x'),
+                anyrand.connect(bob).upgradeToAndCall(await anyrandImpl.getAddress(), '0x'),
             ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
         })
     })
@@ -136,22 +135,20 @@ describe('Anyrand', () => {
             await setBalance(await anyrand.getAddress(), parseEther('10'))
         })
 
-        it('should withdraw all ETH if amount==0 called from ACCOUNTING_ROLE', async () => {
-            await anyrand.grantRoles(deployer.address, await anyrand.ACCOUNTING_ROLE())
+        it('should withdraw all ETH if amount==0 called by owner', async () => {
             await expect(anyrand.withdrawETH(0))
                 .to.emit(anyrand, 'ETHWithdrawn')
                 .withArgs(parseEther('10'))
         })
 
-        it('should withdraw specified ETH amount if called from ACCOUNTING_ROLE', async () => {
-            await anyrand.grantRoles(deployer.address, await anyrand.ACCOUNTING_ROLE())
+        it('should withdraw specified ETH amount if called by owner', async () => {
             await expect(anyrand.withdrawETH(parseEther('5')))
                 .to.emit(anyrand, 'ETHWithdrawn')
                 .withArgs(parseEther('5'))
         })
 
-        it('should revert if called from non-ACCOUNTING_ROLE', async () => {
-            await expect(anyrand.withdrawETH(0)).to.be.revertedWithCustomError(
+        it('should revert if called by non-owner', async () => {
+            await expect(anyrand.connect(bob).withdrawETH(0)).to.be.revertedWithCustomError(
                 anyrand,
                 'Unauthorized',
             )
@@ -162,7 +159,7 @@ describe('Anyrand', () => {
             await impersonateAccount(await _dummy.getAddress())
             const dummy = await ethers.getSigner(await _dummy.getAddress())
             await setBalance(dummy.address, parseEther('10'))
-            await anyrand.grantRoles(dummy.address, await anyrand.ACCOUNTING_ROLE())
+            await anyrand.transferOwnership(dummy.address)
             await expect(anyrand.connect(dummy).withdrawETH(0)).to.be.revertedWithCustomError(
                 anyrand,
                 'TransferFailed',
@@ -636,21 +633,18 @@ describe('Anyrand', () => {
             )
         })
 
-        it('should set the beacon if caller has BEACON_ADMIN_ROLE', async () => {
-            await anyrand.grantRoles(deployer.address, await anyrand.BEACON_ADMIN_ROLE())
+        it('should set the beacon if caller is owner', async () => {
             await anyrand.setBeacon(await newBeacon.getAddress())
             expect(await anyrand.beacon()).to.eq(await newBeacon.getAddress())
         })
 
-        it('should revert if caller does not have BEACON_ADMIN_ROLE', async () => {
+        it('should revert if caller is not owner', async () => {
             await expect(
-                anyrand.setBeacon(await newBeacon.getAddress()),
+                anyrand.connect(bob).setBeacon(await newBeacon.getAddress()),
             ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
         })
 
         it('should revert if beacon is invalid', async () => {
-            await anyrand.grantRoles(deployer.address, await anyrand.BEACON_ADMIN_ROLE())
-
             const dummyBeacon = await new Dummy__factory(deployer).deploy()
             await expect(
                 anyrand.setBeacon(await dummyBeacon.getAddress()),
@@ -668,8 +662,7 @@ describe('Anyrand', () => {
     })
 
     describe('setRequestPremiumMultiplierBps', () => {
-        it('should set the base request price if caller has CONFIGURATOR_ROLE', async () => {
-            await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
+        it('should set the base request price if caller is owner', async () => {
             await anyrand.setRequestPremiumMultiplierBps(120_00) // 120%
             expect(await anyrand.requestPremiumMultiplierBps()).to.eq(120_00)
             const gasPrice = await ethers.provider.getFeeData().then((res) => res.gasPrice!)
@@ -685,14 +678,13 @@ describe('Anyrand', () => {
             expect(requestPrice60 * 2n).to.eq(requestPrice120)
         })
 
-        it('should revert if caller does not have CONFIGURATOR_ROLE', async () => {
+        it('should revert if caller is not owner', async () => {
             await expect(
-                anyrand.setRequestPremiumMultiplierBps(120_00),
+                anyrand.connect(bob).setRequestPremiumMultiplierBps(120_00),
             ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
         })
 
         it('should allow free requests if multiplier is 0', async () => {
-            await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
             await anyrand.setRequestPremiumMultiplierBps(0n)
             expect(await anyrand.requestPremiumMultiplierBps()).to.eq(0n)
             const [requestPrice] = await anyrand.getRequestPrice(100_000n, {
@@ -703,32 +695,28 @@ describe('Anyrand', () => {
     })
 
     describe('setMaxCallbackGasLimit', () => {
-        it('should set the max callback gas limit if caller has CONFIGURATOR_ROLE', async () => {
-            await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
+        it('should set the max callback gas limit if caller is owner', async () => {
             await anyrand.setMaxCallbackGasLimit(100_000n)
             expect(await anyrand.maxCallbackGasLimit()).to.eq(100_000n)
         })
 
-        it('should revert if caller does not have CONFIGURATOR_ROLE', async () => {
-            await expect(anyrand.setMaxCallbackGasLimit(100_000n)).to.be.revertedWithCustomError(
-                anyrand,
-                'Unauthorized',
-            )
+        it('should revert if caller is not owner', async () => {
+            await expect(
+                anyrand.connect(bob).setMaxCallbackGasLimit(100_000n),
+            ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
         })
     })
 
     describe('setMaxDeadlineDelta', () => {
-        it('should set the max deadline delta if caller has CONFIGURATOR_ROLE', async () => {
-            await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
+        it('should set the max deadline delta if caller is owner', async () => {
             await anyrand.setMaxDeadlineDelta(7200n)
             expect(await anyrand.maxDeadlineDelta()).to.eq(7200n)
         })
 
-        it('should revert if caller does not have CONFIGURATOR_ROLE', async () => {
-            await expect(anyrand.setMaxDeadlineDelta(7200n)).to.be.revertedWithCustomError(
-                anyrand,
-                'Unauthorized',
-            )
+        it('should revert if caller is not owner', async () => {
+            await expect(
+                anyrand.connect(bob).setMaxDeadlineDelta(7200n),
+            ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
         })
     })
 
@@ -738,15 +726,14 @@ describe('Anyrand', () => {
             newGasStation = await new GasStationEthereum__factory(deployer).deploy()
         })
 
-        it('should set the gas station if caller has CONFIGURATOR_ROLE', async () => {
-            await anyrand.grantRoles(deployer.address, await anyrand.CONFIGURATOR_ROLE())
+        it('should set the gas station if caller is owner', async () => {
             await anyrand.setGasStation(await newGasStation.getAddress())
             expect(await anyrand.gasStation()).to.eq(await newGasStation.getAddress())
         })
 
-        it('should revert if caller does not have CONFIGURATOR_ROLE', async () => {
+        it('should revert if caller is not owner', async () => {
             await expect(
-                anyrand.setGasStation(await newGasStation.getAddress()),
+                anyrand.connect(bob).setGasStation(await newGasStation.getAddress()),
             ).to.be.revertedWithCustomError(anyrand, 'Unauthorized')
         })
     })
@@ -784,6 +771,21 @@ describe('Anyrand', () => {
                     ),
                 ),
             )
+        })
+    })
+
+    describe('ownership', () => {
+        it('should be transferrable', async () => {
+            await anyrand.connect(bob).requestOwnershipHandover()
+            expect(await anyrand.owner()).to.eq(deployer.address)
+            await anyrand.completeOwnershipHandover(bob.address)
+            expect(await anyrand.owner()).to.eq(bob.address)
+        })
+
+        it('should be renouncable', async () => {
+            expect(await anyrand.owner()).to.eq(deployer.address)
+            await anyrand.renounceOwnership()
+            expect(await anyrand.owner()).to.eq(ZeroAddress)
         })
     })
 })

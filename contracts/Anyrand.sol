@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.23;
 
-import {OwnableRoles} from "solady/src/auth/OwnableRoles.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Gas} from "./lib/Gas.sol";
@@ -18,19 +18,10 @@ import {IDrandBeacon} from "./interfaces/IDrandBeacon.sol";
 contract Anyrand is
     AnyrandStorage,
     ITypeAndVersion,
-    OwnableRoles,
+    Ownable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    /// @notice Role to upgrade the contract
-    uint256 public constant UPGRADER_ROLE = _ROLE_0;
-    /// @notice Role to do accounting stuff e.g. withdraw ETH
-    uint256 public constant ACCOUNTING_ROLE = _ROLE_1;
-    /// @notice Role to set/change/upgrade the beacon
-    uint256 public constant BEACON_ADMIN_ROLE = _ROLE_2;
-    /// @notice Role to configure various parameters of the contract
-    uint256 public constant CONFIGURATOR_ROLE = _ROLE_3;
-
     constructor() {
         _disableInitializers();
     }
@@ -52,7 +43,7 @@ contract Anyrand is
         uint256 maxFeePerGas_
     ) public initializer {
         __UUPSUpgradeable_init();
-        // OwnableRoles
+        // solady/auth/Ownable requires explicit initialisation
         _initializeOwner(msg.sender);
 
         MainStorage storage $ = _getMainStorage();
@@ -80,7 +71,7 @@ contract Anyrand is
     /// @inheritdoc UUPSUpgradeable
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRoles(UPGRADER_ROLE) {}
+    ) internal override onlyOwner {}
 
     /// @notice See {ITypeAndVersion-typeAndVersion}
     function typeAndVersion() external pure returns (string memory) {
@@ -117,7 +108,7 @@ contract Anyrand is
     /// @notice Withdraw ETH
     /// @param amount Amount of ETH (in wei) to withdraw. Input 0
     ///     to withdraw entire balance
-    function withdrawETH(uint256 amount) external onlyRoles(ACCOUNTING_ROLE) {
+    function withdrawETH(uint256 amount) external onlyOwner {
         if (amount == 0) {
             amount = address(this).balance;
         }
@@ -369,9 +360,7 @@ contract Anyrand is
 
     /// @notice Set the beacon (privileged)
     /// @param newBeacon The new beacon
-    function setBeacon(
-        address newBeacon
-    ) external onlyRoles(BEACON_ADMIN_ROLE) {
+    function setBeacon(address newBeacon) external onlyOwner {
         _setBeacon(newBeacon);
     }
 
@@ -379,7 +368,7 @@ contract Anyrand is
     /// @param newRequestPremiumMultiplierBps The new request premium multiplier
     function setRequestPremiumMultiplierBps(
         uint256 newRequestPremiumMultiplierBps
-    ) external onlyRoles(CONFIGURATOR_ROLE) {
+    ) external onlyOwner {
         MainStorage storage $ = _getMainStorage();
         $.requestPremiumMultiplierBps = newRequestPremiumMultiplierBps;
         emit RequestPremiumMultiplierUpdated(newRequestPremiumMultiplierBps);
@@ -389,7 +378,7 @@ contract Anyrand is
     /// @param newMaxCallbackGasLimit The new max callback gas limit
     function setMaxCallbackGasLimit(
         uint256 newMaxCallbackGasLimit
-    ) external onlyRoles(CONFIGURATOR_ROLE) {
+    ) external onlyOwner {
         MainStorage storage $ = _getMainStorage();
         $.maxCallbackGasLimit = newMaxCallbackGasLimit;
         emit MaxCallbackGasLimitUpdated(newMaxCallbackGasLimit);
@@ -399,7 +388,7 @@ contract Anyrand is
     /// @param newMaxDeadlineDelta The new max deadline delta
     function setMaxDeadlineDelta(
         uint256 newMaxDeadlineDelta
-    ) external onlyRoles(CONFIGURATOR_ROLE) {
+    ) external onlyOwner {
         MainStorage storage $ = _getMainStorage();
         $.maxDeadlineDelta = newMaxDeadlineDelta;
         emit MaxDeadlineDeltaUpdated(newMaxDeadlineDelta);
@@ -407,9 +396,7 @@ contract Anyrand is
 
     /// @notice Set the gas station
     /// @param newGasStation The new gas station
-    function setGasStation(
-        address newGasStation
-    ) external onlyRoles(CONFIGURATOR_ROLE) {
+    function setGasStation(address newGasStation) external onlyOwner {
         MainStorage storage $ = _getMainStorage();
         $.gasStation = newGasStation;
         emit GasStationUpdated(newGasStation);
