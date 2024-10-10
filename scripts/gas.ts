@@ -1,7 +1,6 @@
-import { Transaction, concat, getBytes } from 'ethers'
+import { Transaction, formatEther, formatUnits, getBytes } from 'ethers'
 import { ethers } from 'hardhat'
-import { TestFlz__factory } from '../typechain-types'
-const abi = ethers.AbiCoder.defaultAbiCoder()
+import { IL1GasPriceOracle__factory } from '../typechain-types'
 
 async function main() {
     const [deployer] = await ethers.getSigners()
@@ -9,10 +8,22 @@ async function main() {
         throw new Error('Expected Scroll Sepolia')
     }
     const tx = await deployer.provider.getTransaction(
-        '0x59c636c6edebc8ed007e89bc64688698125c877505411caab137b7d05eca8b05',
+        '0x449a8ec4053adcb3c32fa06b03269b08439a19e74fd5b9ce35d26667d07d03bc',
     )
     const raw = Transaction.from(tx!).unsignedSerialized
     console.log(`Raw:\t\t${raw}`)
+    console.log(`Calldata:\t${tx!.data}`)
+
+    const indexOfCalldata = raw.indexOf(tx!.data.slice(2))
+    const highlighted =
+        raw.slice(0, indexOfCalldata) +
+        '\x1B[32m' +
+        tx!.data.slice(2) +
+        '\x1B[0m' +
+        raw.slice(indexOfCalldata + tx!.data.length)
+    console.log(`Highlighted:\t${highlighted}`)
+
+    console.log(`RLP:\t\t${ethers.decodeRlp(getBytes(raw).slice(1))}`) // eip-1559 is a typed tx envelope, first byte is out of bounds
 
     const txBytes = getBytes(raw)
     const zeros = BigInt(txBytes.filter((v) => v === 0).byteLength)
@@ -20,25 +31,22 @@ async function main() {
     console.log(`Zero bytes:\t${zeros}`)
     console.log(`Nonzero bytes:\t${nonzeros}`)
 
-    const TX_DATA_ZERO_GAS = 4n
-    const TX_DATA_NON_ZERO_GAS = 16n
-    const overhead = 2500n
-    const scalar = 1150000000n
-
-    const l1BaseFee = 244412364n
-    const l1Gas = zeros * TX_DATA_ZERO_GAS + (nonzeros + 4n) * TX_DATA_NON_ZERO_GAS
-    const l1GasFee = ((l1Gas + overhead) * l1BaseFee * scalar) / BigInt(1e9)
-    console.log(`L1 gas fee:\t${l1GasFee}`)
-
-    const [compressedTxBytes] = abi.decode(
-        ['bytes'],
-        await ethers.provider.call({
-            data: concat([TestFlz__factory.bytecode, abi.encode(['bytes'], [txBytes])]),
-        }),
+    const oracle = IL1GasPriceOracle__factory.connect(
+        '0x5300000000000000000000000000000000000002',
+        deployer,
     )
-    console.log(
-        `FLZ compressed ${txBytes.length} bytes to ${getBytes(compressedTxBytes).byteLength} bytes`,
+    const requestTx = await deployer.provider.getTransaction(
+        '0x6e4424d42799bc99c5165454a4a5e190ab19ee71e45062078430ef823fd7aa87',
     )
+    const l1Fee = await oracle.getL1Fee(raw, {
+        blockTag: requestTx!.blockNumber!,
+    })
+    console.log(`L1 fee:\t\t${formatEther(l1Fee)} ETH`)
+
+    console.log(`Request gasPrice:\t${formatUnits(requestTx!.gasPrice, 'gwei')} gwei`)
+    const l2Fee = (215_000n + 50_000n) * requestTx!.gasPrice
+    console.log(`L2 fee:\t\t${formatEther(l2Fee)} ETH`)
+    console.log(`Total:\t\t${formatEther(((l1Fee + l2Fee) * 15000n) / 10000n)} ETH`)
 }
 
 main()

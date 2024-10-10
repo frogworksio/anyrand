@@ -1,49 +1,44 @@
 [
   {
-    "inputs": [
-      {
-        "internalType": "uint256[4]",
-        "name": "publicKey_",
-        "type": "uint256[4]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "genesisTimestamp_",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "period_",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "initialRequestPrice",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxCallbackGasLimit_",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxDeadlineDelta_",
-        "type": "uint256"
-      }
-    ],
+    "inputs": [],
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
   {
     "inputs": [
       {
-        "internalType": "uint256[4]",
-        "name": "input",
-        "type": "uint256[4]"
+        "internalType": "address",
+        "name": "target",
+        "type": "address"
       }
     ],
-    "name": "BNAddFailed",
+    "name": "AddressEmptyCode",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AlreadyInitialized",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "implementation",
+        "type": "address"
+      }
+    ],
+    "name": "ERC1967InvalidImplementation",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ERC1967NonPayable",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "FailedInnerCall",
     "type": "error"
   },
   {
@@ -70,28 +65,12 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "genesisTimestamp",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "period",
-        "type": "uint256"
+        "internalType": "address",
+        "name": "beacon",
+        "type": "address"
       }
     ],
-    "name": "InvalidBeaconConfiguration",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "dst",
-        "type": "bytes"
-      }
-    ],
-    "name": "InvalidDSTLength",
+    "name": "InvalidBeacon",
     "type": "error"
   },
   {
@@ -106,25 +85,8 @@
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "x",
-        "type": "uint256"
-      }
-    ],
-    "name": "InvalidFieldElement",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256[4]",
-        "name": "pubKey",
-        "type": "uint256[4]"
-      }
-    ],
-    "name": "InvalidPublicKey",
+    "inputs": [],
+    "name": "InvalidInitialization",
     "type": "error"
   },
   {
@@ -141,54 +103,27 @@
   {
     "inputs": [
       {
-        "internalType": "uint256[4]",
-        "name": "pubKey",
-        "type": "uint256[4]"
-      },
-      {
-        "internalType": "uint256[2]",
-        "name": "message",
-        "type": "uint256[2]"
-      },
-      {
-        "internalType": "uint256[2]",
-        "name": "signature",
-        "type": "uint256[2]"
+        "internalType": "enum IAnyrand.RequestState",
+        "name": "state",
+        "type": "uint8"
       }
     ],
-    "name": "InvalidSignature",
+    "name": "InvalidRequestState",
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "noSqrt",
-        "type": "uint256"
-      }
-    ],
-    "name": "MapToPointFailed",
+    "inputs": [],
+    "name": "NewOwnerIsZeroAddress",
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "base",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "exponent",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "modulus",
-        "type": "uint256"
-      }
-    ],
-    "name": "ModExpFailed",
+    "inputs": [],
+    "name": "NoHandoverRequest",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotInitializing",
     "type": "error"
   },
   {
@@ -203,30 +138,8 @@
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      }
-    ],
-    "name": "OwnableInvalidOwner",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      }
-    ],
-    "name": "OwnableUnauthorizedAccount",
-    "type": "error"
-  },
-  {
     "inputs": [],
-    "name": "Reentrant",
+    "name": "ReentrancyGuardReentrantCall",
     "type": "error"
   },
   {
@@ -246,6 +159,40 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "UUPSUnauthorizedCallContext",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "slot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "UUPSUnsupportedProxiableUUID",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newBeacon",
+        "type": "address"
+      }
+    ],
+    "name": "BeaconUpdated",
+    "type": "event"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -256,6 +203,32 @@
       }
     ],
     "name": "ETHWithdrawn",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newGasStation",
+        "type": "address"
+      }
+    ],
+    "name": "GasStationUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "version",
+        "type": "uint64"
+      }
+    ],
+    "name": "Initialized",
     "type": "event"
   },
   {
@@ -288,9 +261,48 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxFeePerGas",
+        "type": "uint256"
+      }
+    ],
+    "name": "MaxFeePerGasUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
-        "name": "previousOwner",
+        "name": "pendingOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipHandoverCanceled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "pendingOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipHandoverRequested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "oldOwner",
         "type": "address"
       },
       {
@@ -314,9 +326,52 @@
       },
       {
         "indexed": false,
-        "internalType": "uint256[]",
-        "name": "randomWords",
-        "type": "uint256[]"
+        "internalType": "bytes32",
+        "name": "retdata",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "gasLimit",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "actualGasUsed",
+        "type": "uint256"
+      }
+    ],
+    "name": "RandomnessCallbackFailed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "requestId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "randomness",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "callbackSuccess",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "actualGasUsed",
+        "type": "uint256"
       }
     ],
     "name": "RandomnessFulfilled",
@@ -332,10 +387,16 @@
         "type": "uint256"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
         "name": "requester",
         "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "pubKeyHash",
+        "type": "bytes32"
       },
       {
         "indexed": false,
@@ -347,6 +408,18 @@
         "indexed": false,
         "internalType": "uint256",
         "name": "callbackGasLimit",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "feePaid",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "effectiveFeePerGas",
         "type": "uint256"
       }
     ],
@@ -363,17 +436,49 @@
         "type": "uint256"
       }
     ],
-    "name": "RequestPriceUpdated",
+    "name": "RequestPremiumMultiplierUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "implementation",
+        "type": "address"
+      }
+    ],
+    "name": "Upgraded",
     "type": "event"
   },
   {
     "inputs": [],
-    "name": "DST",
+    "name": "UPGRADE_INTERFACE_VERSION",
     "outputs": [
       {
-        "internalType": "bytes",
+        "internalType": "string",
         "name": "",
-        "type": "bytes"
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "pubkeyHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "beacon",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -381,12 +486,32 @@
   },
   {
     "inputs": [],
-    "name": "baseRequestPrice",
+    "name": "cancelOwnershipHandover",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "pendingOwner",
+        "type": "address"
+      }
+    ],
+    "name": "completeOwnershipHandover",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "currentBeaconPubKeyHash",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "bytes32",
         "name": "",
-        "type": "uint256"
+        "type": "bytes32"
       }
     ],
     "stateMutability": "view",
@@ -403,6 +528,11 @@
         "internalType": "address",
         "name": "requester",
         "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "pubKeyHash",
+        "type": "bytes32"
       },
       {
         "internalType": "uint256",
@@ -427,25 +557,12 @@
   },
   {
     "inputs": [],
-    "name": "genesisTimestamp",
+    "name": "gasStation",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "address",
         "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getPubKey",
-    "outputs": [
-      {
-        "internalType": "uint256[4]",
-        "name": "",
-        "type": "uint256[4]"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -465,9 +582,71 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "requestId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRequestState",
+    "outputs": [
+      {
+        "internalType": "enum IAnyrand.RequestState",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "beacon_",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "requestPremiumMultiplierBps_",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxCallbackGasLimit_",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxDeadlineDelta_",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "gasStation_",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxFeePerGas_",
+        "type": "uint256"
+      }
+    ],
+    "name": "init",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -498,6 +677,19 @@
   },
   {
     "inputs": [],
+    "name": "maxFeePerGas",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "nextRequestId",
     "outputs": [
       {
@@ -515,7 +707,7 @@
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "result",
         "type": "address"
       }
     ],
@@ -523,12 +715,18 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "period",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "pendingOwner",
+        "type": "address"
+      }
+    ],
+    "name": "ownershipHandoverExpiresAt",
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "result",
         "type": "uint256"
       }
     ],
@@ -537,51 +735,12 @@
   },
   {
     "inputs": [],
-    "name": "publicKey0",
+    "name": "proxiableUUID",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "bytes32",
         "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "publicKey1",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "publicKey2",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "publicKey3",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
+        "type": "bytes32"
       }
     ],
     "stateMutability": "view",
@@ -591,7 +750,27 @@
     "inputs": [],
     "name": "renounceOwnership",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "requestOwnershipHandover",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "requestPremiumMultiplierBps",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -640,6 +819,32 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "newBeacon",
+        "type": "address"
+      }
+    ],
+    "name": "setBeacon",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newGasStation",
+        "type": "address"
+      }
+    ],
+    "name": "setGasStation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "newMaxCallbackGasLimit",
         "type": "uint256"
@@ -667,11 +872,11 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "newPrice",
+        "name": "newRequestPremiumMultiplierBps",
         "type": "uint256"
       }
     ],
-    "name": "setPrice",
+    "name": "setRequestPremiumMultiplierBps",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -686,7 +891,38 @@
     ],
     "name": "transferOwnership",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "typeAndVersion",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newImplementation",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "upgradeToAndCall",
+    "outputs": [],
+    "stateMutability": "payable",
     "type": "function"
   },
   {

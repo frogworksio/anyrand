@@ -1,129 +1,93 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.23;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {BLS} from "@kevincharm/bls-bn254/contracts/BLS.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Gas} from "./lib/Gas.sol";
-import {IRandomiserCallback} from "./interfaces/IRandomiserCallback.sol";
-import {IAnyrand} from "./interfaces/IAnyrand.sol";
+import {ITypeAndVersion} from "./interfaces/ITypeAndVersion.sol";
+import {IRandomiserCallbackV3} from "./interfaces/IRandomiserCallbackV3.sol";
+import {AnyrandStorage} from "./AnyrandStorage.sol";
+import {IGasStation} from "./interfaces/IGasStation.sol";
+import {IDrandBeacon} from "./interfaces/IDrandBeacon.sol";
 
-/// @title Anyrand by Fairy
-/// @author kevincharm (k@fairy.dev)
-contract Anyrand is IAnyrand, Ownable {
-    /// @notice Domain separation tag
-    bytes public constant DST =
-        bytes("BLS_SIG_BN254G1_XMD:KECCAK-256_SSWU_RO_NUL_");
+/// @title Anyrand
+/// @author Kevin Charm (kevin@frogworks.io)
+/// @notice Coordinator for requesting and receiving verified randomness from
+///     a drand (https://drand.love) beacon.
+contract Anyrand is
+    AnyrandStorage,
+    ITypeAndVersion,
+    Ownable,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable
+{
+    constructor() {
+        _disableInitializers();
+    }
 
-    /// @notice Group PK Re(x) in G2
-    uint256 public immutable publicKey0;
-    /// @notice Group PK Im(x) in G2
-    uint256 public immutable publicKey1;
-    /// @notice Group PK Re(y) in G2
-    uint256 public immutable publicKey2;
-    /// @notice Group PK Im(y) in G2
-    uint256 public immutable publicKey3;
-    /// @notice The beacon's period, in seconds
-    uint256 public immutable period;
-    /// @notice Genesis timestamp
-    uint256 public immutable genesisTimestamp;
-
-    /// @notice The base price of entropy
-    uint256 public baseRequestPrice;
-    /// @notice Maximum callback gas limit
-    uint256 public maxCallbackGasLimit;
-    /// @notice Maximum number of seconds in the future from which randomness
-    ///     can be requested
-    uint256 public maxDeadlineDelta;
-    /// @notice Self-explanatory
-    uint256 public nextRequestId;
-    /// @notice Request hashes - see {Anyrand-hashRequest}
-    mapping(uint256 requestId => bytes32) public requests;
-    /// @notice Reentrance flag
-    bool private reentranceLock;
-
-    event RandomnessRequested(
-        uint256 indexed requestId,
-        address requester,
-        uint256 round,
-        uint256 callbackGasLimit
-    );
-    event RandomnessFulfilled(uint256 indexed requestId, uint256[] randomWords);
-    event RequestPriceUpdated(uint256 newPrice);
-    event ETHWithdrawn(uint256 amount);
-    event MaxCallbackGasLimitUpdated(uint256 newMaxCallbackGasLimit);
-    event MaxDeadlineDeltaUpdated(uint256 maxDeadlineDelta);
-
-    error TransferFailed(address to, uint256 value);
-    error IncorrectPayment(uint256 got, uint256 want);
-    error OverGasLimit(uint256 callbackGasLimit);
-    error InvalidRequestHash(bytes32 requestHash);
-    error InvalidSignature(
-        uint256[4] pubKey,
-        uint256[2] message,
-        uint256[2] signature
-    );
-    error InvalidPublicKey(uint256[4] pubKey);
-    error InvalidBeaconConfiguration(uint256 genesisTimestamp, uint256 period);
-    error InvalidDeadline(uint256 deadline);
-    error InsufficientGas();
-    error Reentrant();
-
-    constructor(
-        uint256[4] memory publicKey_,
-        uint256 genesisTimestamp_,
-        uint256 period_,
-        uint256 initialRequestPrice,
+    /// @notice Initialise the contract
+    /// @param beacon_ The address of contract with drand beacon data
+    /// @param requestPremiumMultiplierBps_ The percentage multiplier applied
+    ///     to the raw tx cost
+    /// @param maxCallbackGasLimit_ The maximum callback gas limit
+    /// @param maxDeadlineDelta_ The maximum deadline delta
+    /// @param gasStation_ The address of the gas station
+    /// @param maxFeePerGas_ The maximum effective fee per gas for requests
+    function init(
+        address beacon_,
+        uint256 requestPremiumMultiplierBps_,
         uint256 maxCallbackGasLimit_,
-        uint256 maxDeadlineDelta_
-    ) Ownable(msg.sender) {
-        if (!BLS.isValidPublicKey(publicKey_)) {
-            revert InvalidPublicKey(publicKey_);
-        }
-        publicKey0 = publicKey_[0];
-        publicKey1 = publicKey_[1];
-        publicKey2 = publicKey_[2];
-        publicKey3 = publicKey_[3];
+        uint256 maxDeadlineDelta_,
+        address gasStation_,
+        uint256 maxFeePerGas_
+    ) public initializer {
+        __UUPSUpgradeable_init();
+        // solady/auth/Ownable requires explicit initialisation
+        _initializeOwner(msg.sender);
 
-        if (genesisTimestamp_ == 0 || period_ == 0) {
-            revert InvalidBeaconConfiguration(genesisTimestamp_, period_);
-        }
-        genesisTimestamp = genesisTimestamp_;
-        period = period_;
+        MainStorage storage $ = _getMainStorage();
 
-        baseRequestPrice = initialRequestPrice;
-        emit RequestPriceUpdated(initialRequestPrice);
+        _setBeacon(beacon_);
 
-        maxCallbackGasLimit = maxCallbackGasLimit_;
+        $.nextRequestId = 1;
+
+        $.requestPremiumMultiplierBps = requestPremiumMultiplierBps_;
+        emit RequestPremiumMultiplierUpdated(requestPremiumMultiplierBps_);
+
+        $.maxCallbackGasLimit = maxCallbackGasLimit_;
         emit MaxCallbackGasLimitUpdated(maxCallbackGasLimit_);
 
-        maxDeadlineDelta = maxDeadlineDelta_;
+        $.maxDeadlineDelta = maxDeadlineDelta_;
         emit MaxDeadlineDeltaUpdated(maxDeadlineDelta_);
+
+        $.gasStation = gasStation_;
+        emit GasStationUpdated(gasStation_);
+
+        $.maxFeePerGas = maxFeePerGas_;
+        emit MaxFeePerGasUpdated(maxFeePerGas_);
     }
 
-    /// @notice Assert that the reentrance lock is not set
-    function _assertNoReentrance() internal view {
-        if (reentranceLock) {
-            revert Reentrant();
-        }
-    }
+    /// @inheritdoc UUPSUpgradeable
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 
-    /// @notice Return this beacon's public key in memory
-    function getPubKey() public view returns (uint256[4] memory) {
-        uint256[4] memory pubKey;
-        pubKey[0] = publicKey0;
-        pubKey[1] = publicKey1;
-        pubKey[2] = publicKey2;
-        pubKey[3] = publicKey3;
-        return pubKey;
+    /// @notice See {ITypeAndVersion-typeAndVersion}
+    function typeAndVersion() external pure returns (string memory) {
+        return "Anyrand 1.0.0";
     }
 
     /// @notice Compute keccak256 of a request
     /// @param requestId Request id, acts as a nonce
     /// @param requester Address of contract that initiated the request.
+    /// @param pubKeyHash hash of the beacon's public key
     /// @param round Target round of the drand beacon.
-    function hashRequest(
+    /// @param callbackGasLimit Gas limit for callback
+    function _hashRequest(
         uint256 requestId,
         address requester,
+        bytes32 pubKeyHash,
         uint256 round,
         uint256 callbackGasLimit
     ) internal view returns (bytes32) {
@@ -134,6 +98,7 @@ contract Anyrand is IAnyrand, Ownable {
                     address(this),
                     requestId,
                     requester,
+                    pubKeyHash,
                     round,
                     callbackGasLimit
                 )
@@ -154,41 +119,33 @@ contract Anyrand is IAnyrand, Ownable {
         emit ETHWithdrawn(amount);
     }
 
-    /// @notice Update request price
-    /// @param newPrice The new price
-    function setPrice(uint256 newPrice) external onlyOwner {
-        baseRequestPrice = newPrice;
-        emit RequestPriceUpdated(newPrice);
-    }
-
-    /// @notice Compute the total request price
+    /// @notice Compute the total request price.
     /// @param callbackGasLimit The callback gas limit that will be used for
     ///     the randomness request
     function getRequestPrice(
         uint256 callbackGasLimit
-    ) public view virtual returns (uint256) {
-        return baseRequestPrice + (200_000 + callbackGasLimit) * tx.gasprice;
+    ) public view virtual returns (uint256, uint256) {
+        MainStorage storage $ = _getMainStorage();
+        (uint256 rawTxCost, uint256 effectiveFeePerGas) = IGasStation(
+            $.gasStation
+        ).getTxCost(
+                200_000 /** fulfillRandomness overhead */ + callbackGasLimit
+            );
+        uint256 totalCost = (rawTxCost * $.requestPremiumMultiplierBps) / 1e4;
+        if (effectiveFeePerGas > $.maxFeePerGas) {
+            // Cap gas price at maxFeePerGas (keeper will only fulfill when gas
+            // price <= maxFeePerGas)
+            // Importantly, fulfilment is permissionless, so it's possible to
+            // override this behaviour and fulfill randomness even when the
+            // keeper refuses to.
+            totalCost = $.maxFeePerGas * callbackGasLimit;
+            effectiveFeePerGas = $.maxFeePerGas;
+        }
+        return (totalCost, effectiveFeePerGas);
     }
 
-    /// @notice Update max callback gas limit
-    /// @param newMaxCallbackGasLimit The new max callback gas limit
-    function setMaxCallbackGasLimit(
-        uint256 newMaxCallbackGasLimit
-    ) external onlyOwner {
-        maxCallbackGasLimit = newMaxCallbackGasLimit;
-        emit MaxCallbackGasLimitUpdated(newMaxCallbackGasLimit);
-    }
-
-    /// @notice Update max deadline delta
-    /// @param newMaxDeadlineDelta The new max deadline delta
-    function setMaxDeadlineDelta(
-        uint256 newMaxDeadlineDelta
-    ) external onlyOwner {
-        maxDeadlineDelta = newMaxDeadlineDelta;
-        emit MaxDeadlineDeltaUpdated(newMaxDeadlineDelta);
-    }
-
-    /// @notice Request randomness
+    /// @notice Request randomness. Note that the fulfilment of the request will
+    ///     always be *after* the deadline, but never before.
     /// @param deadline Timestamp of when the randomness should be fulfilled. A
     ///     beacon round closest to this timestamp (rounding up to the nearest
     ///     future round) will be used as the round from which to derive
@@ -197,35 +154,49 @@ contract Anyrand is IAnyrand, Ownable {
     function requestRandomness(
         uint256 deadline,
         uint256 callbackGasLimit
-    ) external payable override returns (uint256) {
-        _assertNoReentrance();
-        uint256 reqPrice = getRequestPrice(callbackGasLimit);
-        if (msg.value < reqPrice) {
+    ) external payable override nonReentrant returns (uint256) {
+        // Compute the total request price (including the premium) that will be
+        // used to cover the keeper's costs
+        (uint256 reqPrice, uint256 effectiveFeePerGas) = getRequestPrice(
+            callbackGasLimit
+        );
+        if (msg.value != reqPrice) {
             revert IncorrectPayment(msg.value, reqPrice);
         }
-        if (callbackGasLimit > maxCallbackGasLimit) {
+
+        MainStorage storage $ = _getMainStorage();
+        if (callbackGasLimit > $.maxCallbackGasLimit) {
             revert OverGasLimit(callbackGasLimit);
         }
-        if (deadline > block.timestamp + maxDeadlineDelta) {
-            revert InvalidDeadline(deadline);
+
+        bytes32 pubKeyHash = $.currentBeaconPubKeyHash;
+        // Here we find the nearest round
+        uint64 round;
+        {
+            IDrandBeacon drandBeacon = IDrandBeacon($.beacons[pubKeyHash]);
+            pubKeyHash = drandBeacon.publicKeyHash();
+            uint256 genesis = drandBeacon.genesisTimestamp();
+            uint256 period = drandBeacon.period();
+            if (
+                (deadline > block.timestamp + $.maxDeadlineDelta) ||
+                (deadline < genesis) ||
+                deadline < (block.timestamp + period)
+            ) {
+                revert InvalidDeadline(deadline);
+            }
+            // Calculate nearest round from deadline (rounding to the future)
+            uint256 delta = deadline - genesis;
+            round = uint64((delta / period) + (delta % period));
         }
 
-        uint256 requestId = nextRequestId;
-        nextRequestId++;
-
-        // Calculate nearest round from deadline (rounding to the future)
-        if (
-            (deadline < genesisTimestamp) ||
-            deadline < (block.timestamp + period)
-        ) {
-            revert InvalidDeadline(deadline);
-        }
-        uint256 delta = deadline - genesisTimestamp;
-        uint64 round = uint64((delta / period) + (delta % period));
-
-        requests[requestId] = hashRequest(
+        // Record the commitment of this request
+        uint256 requestId = $.nextRequestId++;
+        assert($.requestStates[requestId] == RequestState.Nonexistent);
+        $.requestStates[requestId] = RequestState.Pending;
+        $.requests[requestId] = _hashRequest(
             requestId,
             msg.sender,
+            pubKeyHash,
             round,
             callbackGasLimit
         );
@@ -233,14 +204,37 @@ contract Anyrand is IAnyrand, Ownable {
         emit RandomnessRequested(
             requestId,
             msg.sender,
+            pubKeyHash,
             round,
-            callbackGasLimit
+            callbackGasLimit,
+            reqPrice,
+            effectiveFeePerGas
         );
 
         return requestId;
     }
 
-    /// @notice Fulfill a randomness request (for beacon keepers)
+    /// @notice Call a function, forwarding an exact amount of gas, whilst also
+    ///     measuring how much gas was actually used.
+    /// @param callbackGasLimit The amount of gas to use
+    /// @param target The address to call
+    /// @param data The data to send
+    /// @return success Whether the call succeeded
+    /// @return gasUsed The amount of gas used
+    function _callWithExactGas(
+        uint256 callbackGasLimit,
+        address target,
+        bytes memory data
+    ) private returns (bool success, uint256 gasUsed) {
+        gasUsed = gasleft();
+        success = Gas.callWithExactGas(callbackGasLimit, target, data);
+        gasUsed -= gasleft();
+    }
+
+    /// @notice Fulfill a randomness request (for beacon keepers).
+    /// @notice Note that fulfilment only depends on the validity of the BLS
+    ///     signature over the expected beacon round, and DOES NOT check
+    ///     the block timestamp against that round.
     /// @param requestId Which request id to fulfill
     /// @param requester Address of account that initiated the request.
     /// @param round Target round of the drand beacon.
@@ -250,74 +244,179 @@ contract Anyrand is IAnyrand, Ownable {
     function fulfillRandomness(
         uint256 requestId,
         address requester,
+        bytes32 pubKeyHash,
         uint256 round,
         uint256 callbackGasLimit,
         uint256[2] calldata signature
-    ) external {
-        _assertNoReentrance();
+    ) external nonReentrant {
+        MainStorage storage $ = _getMainStorage();
 
-        bytes32 reqHash = hashRequest(
+        // Ensure the request is in the correct state
+        if ($.requestStates[requestId] != RequestState.Pending) {
+            revert InvalidRequestState($.requestStates[requestId]);
+        }
+
+        // The inputs provided by the keeper must match the commitment we
+        // recorded when the request was made.
+        bytes32 reqHash = _hashRequest(
             requestId,
             requester,
+            pubKeyHash,
             round,
             callbackGasLimit
         );
-        if (requests[requestId] != reqHash) {
+        if ($.requests[requestId] != reqHash) {
             revert InvalidRequestHash(reqHash);
         }
-        requests[requestId] = bytes32(0);
 
-        // Encode round for hash-to-point
-        bytes memory hashedRoundBytes = new bytes(32);
-        assembly {
-            mstore(0x00, round)
-            let hashedRound := keccak256(0x18, 0x08) // hash the last 8 bytes (uint64) of `round`
-            mstore(add(0x20, hashedRoundBytes), hashedRound)
-        }
+        // Nullify the request hash; fulfilments must never be replayable
+        $.requests[requestId] = bytes32(0);
 
-        uint256[4] memory pubKey = getPubKey();
-        uint256[2] memory message = BLS.hashToPoint(DST, hashedRoundBytes);
-        bool isValidSignature = BLS.isValidSignature(signature);
-        (bool pairingSuccess, bool callSuccess) = BLS.verifySingle(
-            signature,
-            pubKey,
-            message
-        );
-        if (!isValidSignature || !pairingSuccess || !callSuccess) {
-            revert InvalidSignature(pubKey, message, signature);
-        }
+        // Beacon verification: we check that the signature over the round is
+        // valid for the given pubkey.
+        IDrandBeacon($.beacons[pubKeyHash]).verifyBeaconRound(round, signature);
 
-        uint256[] memory randomWords = new uint256[](1);
-        randomWords[0] = uint256(
+        // Derive randomness from the signature
+        uint256 randomness = uint256(
             keccak256(
                 abi.encode(
-                    keccak256(abi.encode(signature[0], signature[1])),
-                    requestId,
-                    requester
+                    signature[0] /** entropy */,
+                    signature[1] /** entropy */,
+                    block.chainid /** domain separator */,
+                    address(this) /** salt */,
+                    requestId /** salt */,
+                    requester /** salt */
                 )
             )
         );
 
-        callWithExactGas(callbackGasLimit, requester, requestId, randomWords);
-
-        emit RandomnessFulfilled(requestId, randomWords);
-    }
-
-    function callWithExactGas(
-        uint256 callbackGasLimit,
-        address requester,
-        uint256 requestId,
-        uint256[] memory randomWords
-    ) private {
-        reentranceLock = true;
-        Gas.callWithExactGas(
+        (bool didCallbackSucceed, uint256 gasUsed) = _callWithExactGas(
             callbackGasLimit,
             requester,
             abi.encodePacked(
-                IRandomiserCallback.receiveRandomWords.selector,
-                abi.encode(requestId, randomWords)
+                IRandomiserCallbackV3.receiveRandomness.selector,
+                abi.encode(requestId, randomness)
             )
         );
-        reentranceLock = false;
+        if (!didCallbackSucceed) {
+            // The following code is to help debug any issues that occur in the
+            // case that the callback fails.
+            bytes32 retdata;
+            assembly {
+                function min(a, b) -> c {
+                    switch lt(a, b)
+                    case 1 {
+                        c := a
+                    }
+                    default {
+                        c := b
+                    }
+                }
+
+                mstore(0, 0)
+                // Copy a maximum of 32B from returndata, to ease debugging
+                let r := returndatasize()
+                returndatacopy(0, 0, min(r, 32))
+                retdata := mload(0)
+            }
+            emit RandomnessCallbackFailed(
+                requestId,
+                retdata,
+                callbackGasLimit,
+                gasUsed
+            );
+            $.requestStates[requestId] = RequestState.Failed;
+        } else {
+            $.requestStates[requestId] = RequestState.Fulfilled;
+        }
+
+        emit RandomnessFulfilled(
+            requestId,
+            randomness,
+            didCallbackSucceed,
+            gasUsed
+        );
+    }
+
+    /// @notice Get the state of a request
+    /// @param requestId The request identifier
+    function getRequestState(
+        uint256 requestId
+    ) external view returns (RequestState) {
+        MainStorage storage $ = _getMainStorage();
+        return $.requestStates[requestId];
+    }
+
+    /// @notice Add a new beacon and set the current beacon to it
+    /// @param newBeacon The new beacon
+    function _setBeacon(address newBeacon) internal {
+        // Sanity check
+        try IDrandBeacon(newBeacon).publicKeyHash() returns (
+            bytes32 pubKeyHash
+        ) {
+            if (pubKeyHash == bytes32(0) || pubKeyHash == keccak256(hex"")) {
+                revert InvalidBeacon(newBeacon);
+            }
+
+            // Looks good - add the beacon and update it
+            MainStorage storage $ = _getMainStorage();
+            $.beacons[pubKeyHash] = newBeacon;
+            $.currentBeaconPubKeyHash = pubKeyHash;
+            emit BeaconUpdated(newBeacon);
+        } catch {
+            revert InvalidBeacon(newBeacon);
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    /// Privileged setters ////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
+
+    /// @notice Add a new beacon and set the current beacon to it (privileged)
+    /// @notice This is intended to be used only in the case that the evmnet
+    ///     beacon is deprecated in favour of the BLS12-381 beacon.
+    /// @notice NB: This can replace/fix a beacon that is known to this
+    ///     contract by its public key hash.
+    /// @param newBeacon The new beacon
+    function setBeacon(address newBeacon) external onlyOwner {
+        _setBeacon(newBeacon);
+    }
+
+    /// @notice Update request price
+    /// @param newRequestPremiumMultiplierBps The new request premium multiplier
+    function setRequestPremiumMultiplierBps(
+        uint256 newRequestPremiumMultiplierBps
+    ) external onlyOwner {
+        MainStorage storage $ = _getMainStorage();
+        $.requestPremiumMultiplierBps = newRequestPremiumMultiplierBps;
+        emit RequestPremiumMultiplierUpdated(newRequestPremiumMultiplierBps);
+    }
+
+    /// @notice Update max callback gas limit
+    /// @param newMaxCallbackGasLimit The new max callback gas limit
+    function setMaxCallbackGasLimit(
+        uint256 newMaxCallbackGasLimit
+    ) external onlyOwner {
+        MainStorage storage $ = _getMainStorage();
+        $.maxCallbackGasLimit = newMaxCallbackGasLimit;
+        emit MaxCallbackGasLimitUpdated(newMaxCallbackGasLimit);
+    }
+
+    /// @notice Update max deadline delta
+    /// @param newMaxDeadlineDelta The new max deadline delta
+    function setMaxDeadlineDelta(
+        uint256 newMaxDeadlineDelta
+    ) external onlyOwner {
+        MainStorage storage $ = _getMainStorage();
+        $.maxDeadlineDelta = newMaxDeadlineDelta;
+        emit MaxDeadlineDeltaUpdated(newMaxDeadlineDelta);
+    }
+
+    /// @notice Set the gas station
+    /// @param newGasStation The new gas station
+    function setGasStation(address newGasStation) external onlyOwner {
+        MainStorage storage $ = _getMainStorage();
+        $.gasStation = newGasStation;
+        emit GasStationUpdated(newGasStation);
     }
 }

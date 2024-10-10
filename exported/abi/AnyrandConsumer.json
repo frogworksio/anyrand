@@ -81,7 +81,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "secondsToWait",
+        "name": "deadline",
         "type": "uint256"
       },
       {
@@ -135,12 +135,12 @@
         "type": "uint256"
       },
       {
-        "internalType": "uint256[]",
-        "name": "randomWords",
-        "type": "uint256[]"
+        "internalType": "uint256",
+        "name": "randomWord",
+        "type": "uint256"
       }
     ],
-    "name": "receiveRandomWords",
+    "name": "receiveRandomness",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
