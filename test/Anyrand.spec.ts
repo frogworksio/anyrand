@@ -196,6 +196,35 @@ describe('Anyrand', () => {
         })
     })
 
+    describe('getRound', () => {
+        it('should return the same round for deadlines that round up to the same beacon round', async () => {
+            const genesis = 1727521075n
+            const period = 3n
+            // round = ceil((1728859790-genesis)/period)
+            // => ceil(446238.3333333333)
+            // => 446239
+            const d0 = 1728859790n
+            // round = ceil((1728859792-genesis)/period)
+            // => ceil(446239)
+            // => 446239
+            const d1 = 1728859792n // d0 + period - 1n
+            const r0 = getRound(genesis, d0, period)
+            const r1 = getRound(genesis, d1, period)
+            expect(r0).to.eq(446239n)
+            expect(r0).to.eq(r1)
+            expect(await anyrand.getRound(genesis, d0, period)).to.eq(r0)
+            expect(await anyrand.getRound(genesis, d1, period)).to.eq(r1)
+
+            // round = ceil((1728859793-genesis)/period)
+            // => ceil(446239.3333333333)
+            // => 446240
+            const d2 = 1728859793n // d0 + period
+            const r2 = getRound(genesis, d2, period)
+            expect(r2).to.eq(r1 + 1n)
+            expect(await anyrand.getRound(genesis, d2, period)).to.eq(r2)
+        })
+    })
+
     describe('requestRandomness', () => {
         let gasPrice: bigint
         let requestPrice: bigint

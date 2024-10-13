@@ -84,7 +84,7 @@ export async function deployAnyrandStack(config: AnyrandStackConfig) {
 
 export function getRound(genesis: bigint, deadline: bigint, period: bigint) {
     const delta = deadline - genesis
-    const round = delta / period + (delta % period)
+    const round = delta / period + (delta % period > 0n ? 1n : 0n)
     return round
 }
 

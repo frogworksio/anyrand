@@ -3,7 +3,7 @@ import { DrandBeacon, DrandBeacon__factory } from '../typechain-types'
 import { ethers } from 'hardhat'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { expect } from 'chai'
-import { G2, getHashedRoundMsg, getRound } from './helpers'
+import { G2, getHashedRoundMsg } from './helpers'
 
 describe('DrandBeacon', () => {
     let deployer: SignerWithAddress

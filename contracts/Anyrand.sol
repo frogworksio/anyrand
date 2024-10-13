@@ -144,6 +144,21 @@ contract Anyrand is
         return (totalCost, effectiveFeePerGas);
     }
 
+    /// @notice Compute the drand beacon round given a genesis timestamp,
+    ///     deadline and period.
+    /// @param genesis The genesis timestamp of the drand beacon
+    /// @param deadline The deadline timestamp after which the randomness will
+    ///     be available
+    /// @param period The period of the drand beacon
+    function getRound(
+        uint256 genesis,
+        uint256 deadline,
+        uint256 period
+    ) public pure returns (uint64) {
+        uint256 delta = deadline - genesis;
+        return uint64(delta / period + (delta % period > 0 ? 1 : 0));
+    }
+
     /// @notice Request randomness. Note that the fulfilment of the request will
     ///     always be *after* the deadline, but never before.
     /// @param deadline Timestamp of when the randomness should be fulfilled. A
@@ -185,8 +200,7 @@ contract Anyrand is
                 revert InvalidDeadline(deadline);
             }
             // Calculate nearest round from deadline (rounding to the future)
-            uint256 delta = deadline - genesis;
-            round = uint64((delta / period) + (delta % period));
+            round = getRound(genesis, deadline, period);
         }
 
         // Record the commitment of this request
