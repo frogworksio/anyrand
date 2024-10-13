@@ -120,6 +120,10 @@ contract Anyrand is
     }
 
     /// @notice Compute the total request price.
+    /// @notice NB: The gas calculation uses `tx.gasprice`, so gas prices must
+    ///     be explicitly specified if calling this function statically!
+    ///     Calling this function from a block explorer will give an incorrect
+    ///     price.
     /// @param callbackGasLimit The callback gas limit that will be used for
     ///     the randomness request
     function getRequestPrice(
