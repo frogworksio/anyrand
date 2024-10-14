@@ -1,5 +1,6 @@
 import { HardhatUserConfig } from 'hardhat/types'
 import config from './hardhat.config'
+import { parseUnits } from 'ethers'
 
 const configWithNetwork: HardhatUserConfig = {
     ...config,

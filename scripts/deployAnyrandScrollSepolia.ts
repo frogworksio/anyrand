@@ -8,7 +8,7 @@ import DrandBeacon from '../ignition/modules/DrandBeacon'
 import GasStationScroll from '../ignition/modules/GasStationScroll'
 import AnyrandConsumer from '../ignition/modules/AnyrandConsumer'
 
-const REQUEST_PREMIUM_BPS = 5000n // 50%
+const REQUEST_PREMIUM_MULTIPLIER_BPS = 5000n // 50%
 const MAX_CALLBACK_GAS_LIMIT = 7_500_000n
 const MAX_DEADLINE_DELTA = 5n * 60n // 5 minutes
 const MAX_FEE_PER_GAS = parseUnits('50', 'gwei') // Sepolia gas can get crazy
@@ -51,7 +51,7 @@ async function main() {
     // Anyrand coordinator
     const factoryInitData = Anyrand__factory.createInterface().encodeFunctionData('init', [
         await drandBeacon.getAddress(),
-        REQUEST_PREMIUM_BPS,
+        REQUEST_PREMIUM_MULTIPLIER_BPS,
         MAX_CALLBACK_GAS_LIMIT,
         MAX_DEADLINE_DELTA,
         await gasStationScroll.getAddress(),
