@@ -1,0 +1,39 @@
+diff --git a/node_modules/@nomicfoundation/ignition-core/dist/src/internal/execution/jsonrpc-client.js b/node_modules/@nomicfoundation/ignition-core/dist/src/internal/execution/jsonrpc-client.js
+index 4fcd567..59ed197 100644
+--- a/node_modules/@nomicfoundation/ignition-core/dist/src/internal/execution/jsonrpc-client.js
++++ b/node_modules/@nomicfoundation/ignition-core/dist/src/internal/execution/jsonrpc-client.js
+@@ -52,6 +52,25 @@ class EIP1193JsonRpcClient {
+             baseFeePerGas,
+         };
+     }
++    async getPendingBlock() {
++        const response = await this._provider.request({
++            method: "eth_getBlockByNumber",
++            params: ["pending", false],
++        });
++        assertResponseType("eth_getBlockByNumber", response, typeof response === "object" && response !== null);
++        assertResponseType("eth_getBlockByNumber", response, "number" in response && typeof response.number === "string");
++        // assertResponseType("eth_getBlockByNumber", response, "hash" in response && typeof response.hash === "string");
++        let baseFeePerGas;
++        if ("baseFeePerGas" in response) {
++            assertResponseType("eth_getBlockByNumber", response, typeof response.baseFeePerGas === "string");
++            baseFeePerGas = jsonRpcQuantityToBigInt(response.baseFeePerGas);
++        }
++        return {
++            number: jsonRpcQuantityToNumber(response.number),
++            hash: response.hash,
++            baseFeePerGas,
++        };
++    }
+     async getBalance(address, blockTag) {
+         const balance = await this._provider.request({
+             method: "eth_getBalance",
+@@ -280,7 +299,7 @@ class EIP1193JsonRpcClient {
+     }
+     async _getNetworkFees() {
+         const [latestBlock, chainId] = await Promise.all([
+-            this.getLatestBlock(),
++            this.getPendingBlock(),
+             this.getChainId(),
+         ]);
+         // We prioritize EIP-1559 fees over legacy gasPrice fees, however,

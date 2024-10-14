@@ -5,14 +5,22 @@
   "scripts": {
     "gwei": "yarn hardhat run scripts/gwei.ts",
     "request": "yarn hardhat run scripts/request.ts",
-    "deploy:scrollSepolia": "yarn hardhat --config hardhat.config.scrollSepolia.ts --network scrollSepolia run scripts/deployAnyrandScroll.ts",
+    "deploy:scrollSepolia": "yarn hardhat --config hardhat.config.scrollSepolia.ts --network scrollSepolia run scripts/deployAnyrandScrollSepolia.ts",
+    "deploy:scroll": "yarn hardhat --config hardhat.config.scroll.ts --network scroll run scripts/deployAnyrandScroll.ts",
     "format:check": "yarn prettier --check .",
     "format": "yarn prettier --write .",
     "build": "yarn hardhat compile",
     "test": "yarn hardhat --network hardhat test",
-    "coverage": "yarn hardhat --network hardhat coverage"
+    "coverage": "yarn hardhat --network hardhat coverage",
+    "postinstall": "yarn patch-package"
   },
-  "keywords": ["solidity", "vrf", "drand", "bls", "bn254"],
+  "keywords": [
+    "solidity",
+    "vrf",
+    "drand",
+    "bls",
+    "bn254"
+  ],
   "author": "Kevin Charm <kevin@frogworks.io>",
   "license": "UNLICENSED",
   "devDependencies": {
@@ -37,6 +45,7 @@
     "hardhat-gas-reporter": "^1.0.9",
     "hardhat-storage-layout": "^0.1.7",
     "hardhat-storage-layout-changes": "^0.1.2",
+    "patch-package": "^8.0.0",
     "prettier": "^3.0.3",
     "prettier-plugin-solidity": "^1.1.3",
     "solidity-coverage": "^0.8.1",

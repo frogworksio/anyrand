@@ -1,5 +1,6 @@
 import { HardhatUserConfig } from 'hardhat/types'
 import config from './hardhat.config'
+import { parseUnits } from 'ethers'
 
 const configWithNetwork: HardhatUserConfig = {
     ...config,
@@ -8,7 +9,7 @@ const configWithNetwork: HardhatUserConfig = {
         scroll: {
             chainId: 534352,
             url: process.env.SCROLL_URL as string,
-            accounts: [process.env.MAINNET_PK as string],
+            accounts: [process.env.ANYRAND_DEPLOYER_PK as string],
         },
     },
     etherscan: {

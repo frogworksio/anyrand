@@ -57,15 +57,6 @@ const config: HardhatUserConfig = {
         only: ['Anyrand'],
         except: ['test/*'],
     },
-    ignition: {
-        blockPollingInterval: 5000,
-        requiredConfirmations: 1,
-        strategyConfig: {
-            create2: {
-                salt: '0x97248C0ddC583537a824A7ad5Ee92D5f4525bcAa000000000000000000000001',
-            },
-        },
-    },
 }
 
 export default config
