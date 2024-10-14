@@ -68,10 +68,6 @@ async function main() {
                 factoryInitData,
             },
         },
-        strategy: 'create2',
-        strategyConfig: {
-            salt: '0x2Cb29742D951ec681BEb5d8E1FC0F5B7209ed019000000000000000000000001',
-        },
     })
     console.log(`Anyrand upgradeable proxy deployed at ${await proxy.getAddress()}`)
 
@@ -84,6 +80,17 @@ async function main() {
         },
     })
     console.log(`Anyrand consumer deployed at ${await anyrandConsumer.getAddress()}`)
+
+    // Verify all
+    await run(
+        {
+            scope: 'ignition',
+            task: 'verify',
+        },
+        {
+            deploymentId,
+        },
+    )
 
     // Transfer ownership to multisig
     const [deployer] = await ethers.getSigners()
@@ -99,17 +106,6 @@ async function main() {
     assert(
         (await anyrand.nextRequestId()) === 1n,
         'Proxy not initialised properly? nextRequestId != 1',
-    )
-
-    // Verify all
-    await run(
-        {
-            scope: 'ignition',
-            task: 'verify',
-        },
-        {
-            deploymentId,
-        },
     )
 }
 
