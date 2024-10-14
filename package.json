@@ -5,7 +5,7 @@
   "scripts": {
     "gwei": "yarn hardhat run scripts/gwei.ts",
     "request": "yarn hardhat run scripts/request.ts",
-    "deploy:scrollSepolia": "yarn hardhat --config hardhat.config.scrollSepolia.ts --network scrollSepolia run scripts/deployAnyrandScroll.ts",
+    "deploy:scrollSepolia": "yarn hardhat --config hardhat.config.scrollSepolia.ts --network scrollSepolia run scripts/deployAnyrandScrollSepolia.ts",
     "format:check": "yarn prettier --check .",
     "format": "yarn prettier --write .",
     "build": "yarn hardhat compile",
