@@ -8,7 +8,7 @@ const configWithNetwork: HardhatUserConfig = {
         scrollSepolia: {
             chainId: 534351,
             url: process.env.SCROLL_SEPOLIA_URL as string,
-            accounts: [process.env.ANYRAND_DEPLOYER_PK as string],
+            accounts: [process.env.ANYRAND_SCROLL_DEPLOYER_PK as string],
         },
     },
     etherscan: {
