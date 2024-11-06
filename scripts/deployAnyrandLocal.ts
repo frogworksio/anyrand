@@ -1,12 +1,14 @@
-import { ethers, ignition } from 'hardhat'
+import { ethers, ignition, run } from 'hardhat'
 import { parseUnits } from 'ethers'
 import { getDrandBeaconInfo } from '../lib/drand'
 import { bn254 } from '@kevincharm/noble-bn254-drand'
 import { Anyrand__factory } from '../typechain-types'
 import Anyrand from '../ignition/modules/Anyrand'
 import DrandBeacon from '../ignition/modules/DrandBeacon'
-import GasStationOptimism from '../ignition/modules/GasStationOptimism'
+import GasStationEthereum from '../ignition/modules/GasStationEthereum'
 import assert from 'node:assert'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 
 // This script deploys the Anyrand coordinator on a local hardhat node
 // Launch a local hardhat node before running this script using `yarn hardhat node`
@@ -23,6 +25,13 @@ async function getDeploymentId() {
     return `chain-${chainId.toString()}-v${DEPLOYMENT_VERSION}`
 }
 
+async function wipeDeployment(deploymentId: string) {
+    await fs.rm(path.resolve(__dirname, '../ignition/deployments', deploymentId), {
+        recursive: true,
+        force: true,
+    })
+}
+
 async function main() {
     const chainId = await ethers.provider.getNetwork().then((network) => network.chainId)
     if (chainId !== 31337n) {
@@ -31,6 +40,9 @@ async function main() {
 
     const deploymentId = await getDeploymentId()
     console.log(`Deployment ID: ${deploymentId}`)
+
+    // Wipe any existing deployment
+    await wipeDeployment(deploymentId)
 
     // Beacon
     const evmnet = await getDrandBeaconInfo('evmnet')
@@ -47,7 +59,7 @@ async function main() {
     })
 
     // Gas station
-    const { gasStationOptimism } = await ignition.deploy(GasStationOptimism, {
+    const { gasStationEthereum } = await ignition.deploy(GasStationEthereum, {
         deploymentId,
     })
 
@@ -57,7 +69,7 @@ async function main() {
         REQUEST_PREMIUM_MULTIPLIER_BPS,
         MAX_CALLBACK_GAS_LIMIT,
         MAX_DEADLINE_DELTA,
-        await gasStationOptimism.getAddress(),
+        await gasStationEthereum.getAddress(),
         MAX_FEE_PER_GAS,
     ])
     const { proxy } = await ignition.deploy(Anyrand, {
@@ -87,6 +99,9 @@ async function main() {
         (await anyrand.nextRequestId()) === 1n,
         'Proxy not initialised properly? nextRequestId != 1',
     )
+
+    // Cleanup deployment
+    await wipeDeployment(deploymentId)
 }
 
 main()
