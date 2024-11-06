@@ -13,6 +13,8 @@ yarn-error.log
 cache
 artifacts
 !ignition/**/*
+# Don't commit local deployments
+ignition/deployments/chain-31337-*
 
 # Noir
 circuits/proofs/
