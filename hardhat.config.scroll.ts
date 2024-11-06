@@ -9,7 +9,7 @@ const configWithNetwork: HardhatUserConfig = {
         scroll: {
             chainId: 534352,
             url: process.env.SCROLL_URL as string,
-            accounts: [process.env.ANYRAND_DEPLOYER_PK as string],
+            accounts: [process.env.ANYRAND_SCROLL_DEPLOYER_PK as string],
         },
     },
     etherscan: {

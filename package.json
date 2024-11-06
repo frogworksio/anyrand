@@ -7,6 +7,7 @@
     "request": "yarn hardhat run scripts/request.ts",
     "deploy:scrollSepolia": "yarn hardhat --config hardhat.config.scrollSepolia.ts --network scrollSepolia run scripts/deployAnyrandScrollSepolia.ts",
     "deploy:scroll": "yarn hardhat --config hardhat.config.scroll.ts --network scroll run scripts/deployAnyrandScroll.ts",
+    "deploy:base": "yarn hardhat --config hardhat.config.base.ts --network base run scripts/deployAnyrandBase.ts",
     "format:check": "yarn prettier --check .",
     "format": "yarn prettier --write .",
     "build": "yarn hardhat compile",
@@ -14,13 +15,7 @@
     "coverage": "yarn hardhat --network hardhat coverage",
     "postinstall": "yarn patch-package"
   },
-  "keywords": [
-    "solidity",
-    "vrf",
-    "drand",
-    "bls",
-    "bn254"
-  ],
+  "keywords": ["solidity", "vrf", "drand", "bls", "bn254"],
   "author": "Kevin Charm <kevin@frogworks.io>",
   "license": "UNLICENSED",
   "devDependencies": {

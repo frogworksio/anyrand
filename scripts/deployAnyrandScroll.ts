@@ -95,7 +95,7 @@ async function main() {
     // Transfer ownership to multisig
     const [deployer] = await ethers.getSigners()
     const anyrand = Anyrand__factory.connect(await proxy.getAddress(), deployer)
-    await anyrand.transferOwnership(ANYRAND_ADMIN_MULTISIG)
+    await anyrand.transferOwnership(ANYRAND_ADMIN_MULTISIG).then((tx) => tx.wait(1))
     console.log(`Anyrand ownership transferred to ${ANYRAND_ADMIN_MULTISIG}`)
 
     // Sanity checks!
