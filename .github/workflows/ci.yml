@@ -70,6 +70,9 @@ jobs:
 
       - name: Setup LCOV
         uses: hrishikesh-kadam/setup-lcov@v1
+        with:
+          # solidity-coverage emits branch-only data for empty Solidity functions.
+          ref: v1.16
 
       - name: coverage
         run: yarn coverage
@@ -79,5 +82,6 @@ jobs:
         with:
           coverage-files: coverage/lcov.info
           minimum-coverage: 0
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Fork PR tokens cannot write comments; still generate and check coverage.
+          github-token: ${{ github.event.pull_request.head.repo.full_name == github.repository && secrets.GITHUB_TOKEN || '' }}
           update-comment: true
