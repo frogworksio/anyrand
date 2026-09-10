@@ -197,27 +197,46 @@ describe('Anyrand', () => {
     })
 
     describe('getRound', () => {
+        for (const [offset, expectedRound] of [
+            [0n, 1n],
+            [1n, 2n],
+            [2n, 2n],
+            [3n, 2n],
+            [4n, 3n],
+        ]) {
+            it(`selects round ${expectedRound} for a deadline ${offset}s after genesis`, async () => {
+                const genesis = 1727521075n
+                const period = 3n
+                const deadline = genesis + offset
+                const round = await anyrand.getRound(genesis, deadline, period)
+                expect(round).to.eq(expectedRound)
+                const beaconTimestamp = genesis + (round - 1n) * period
+                expect(beaconTimestamp).to.be.gte(deadline)
+                expect(beaconTimestamp).to.be.lt(deadline + period)
+            })
+        }
+
         it('should return the same round for deadlines that round up to the same beacon round', async () => {
             const genesis = 1727521075n
             const period = 3n
-            // round = ceil((1728859790-genesis)/period)
-            // => ceil(446238.3333333333)
-            // => 446239
+            // round = ceil((1728859790-genesis)/period) + 1
+            // => ceil(446238.3333333333) + 1
+            // => 446240
             const d0 = 1728859790n
-            // round = ceil((1728859792-genesis)/period)
-            // => ceil(446239)
-            // => 446239
+            // round = ceil((1728859792-genesis)/period) + 1
+            // => ceil(446239) + 1
+            // => 446240
             const d1 = 1728859792n // d0 + period - 1n
             const r0 = getRound(genesis, d0, period)
             const r1 = getRound(genesis, d1, period)
-            expect(r0).to.eq(446239n)
+            expect(r0).to.eq(446240n)
             expect(r0).to.eq(r1)
             expect(await anyrand.getRound(genesis, d0, period)).to.eq(r0)
             expect(await anyrand.getRound(genesis, d1, period)).to.eq(r1)
 
-            // round = ceil((1728859793-genesis)/period)
-            // => ceil(446239.3333333333)
-            // => 446240
+            // round = ceil((1728859793-genesis)/period) + 1
+            // => ceil(446239.3333333333) + 1
+            // => 446241
             const d2 = 1728859793n // d0 + period
             const r2 = getRound(genesis, d2, period)
             expect(r2).to.eq(r1 + 1n)
@@ -261,6 +280,49 @@ describe('Anyrand', () => {
                     requestPrice,
                     effectiveFeePerGas,
                 )
+        })
+
+        it('should reject the current beacon for a minimum-deadline request at a round boundary', async () => {
+            // The fixture uses a one-second period, so every timestamp is a round boundary.
+            const requestTimestamp = BigInt(await time.latest()) + 1n
+            const deadline = requestTimestamp + beaconPeriod
+            const currentRound = (requestTimestamp - beaconGenesisTimestamp) / beaconPeriod + 1n
+            const expectedRound = currentRound + 1n
+            const requestId = await anyrand.nextRequestId()
+            const requester = await consumer.getAddress()
+            const signature = bn254
+                .signShortSignature(getHashedRoundMsg(currentRound), beaconSecretKey)
+                .toAffine()
+
+            await time.setNextBlockTimestamp(requestTimestamp)
+            await expect(
+                consumer.getRandom(deadline, callbackGasLimit, {
+                    value: requestPrice,
+                    gasPrice,
+                }),
+            )
+                .to.emit(anyrand, 'RandomnessRequested')
+                .withArgs(
+                    requestId,
+                    requester,
+                    pubKeyHash,
+                    expectedRound,
+                    callbackGasLimit,
+                    requestPrice,
+                    effectiveFeePerGas,
+                )
+
+            await expect(
+                anyrand.fulfillRandomness(
+                    requestId,
+                    requester,
+                    pubKeyHash,
+                    currentRound,
+                    callbackGasLimit,
+                    [signature.x, signature.y],
+                ),
+            ).to.be.revertedWithCustomError(anyrand, 'InvalidRequestHash')
+            expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Pending)
         })
 
         it('should revert if request price returns too high effective gas price', async () => {

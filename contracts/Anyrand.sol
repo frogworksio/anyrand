@@ -160,7 +160,7 @@ contract Anyrand is
         uint256 period
     ) public pure returns (uint64) {
         uint256 delta = deadline - genesis;
-        return uint64(delta / period + (delta % period > 0 ? 1 : 0));
+        return uint64(delta / period + (delta % period > 0 ? 1 : 0) + 1);
     }
 
     /// @notice Request randomness. Note that the fulfilment of the request will
