@@ -200,22 +200,23 @@ describe('Anyrand', () => {
             ['exactly at', 0n],
             ['just above', 1n],
         ] as const) {
-            it(`preserves fulfillment overhead and premium ${label} the fee cap`, async () => {
-                const feeCap = parseUnits('10', 'gwei')
+            it(`should preserve overhead and premium ${label} the fee cap`, async () => {
+                const maxFeePerGas = parseUnits('10', 'gwei')
                 ;({ anyrand } = await deployAnyrandStack({
                     deployer,
                     beacon: (await drandBeacon.getAddress()) as `0x${string}`,
-                    maxFeePerGas: feeCap,
-                    requestPremiumBps: 15_000n,
+                    maxFeePerGas,
+                    requestPremiumBps: 150_00n,
                 }))
 
-                const price = feeCap + offset
-                const cappedPrice = offset > 0n ? feeCap : price
-                // 100k callback + 200k fulfillment overhead, with a 1.5x premium.
-                expect(await anyrand.getRequestPrice(100_000, { gasPrice: price })).to.deep.eq([
-                    cappedPrice * 450_000n,
-                    cappedPrice,
-                ])
+                const gasPrice = maxFeePerGas + offset
+                const expectedFeePerGas = offset > 0n ? maxFeePerGas : gasPrice
+                const [requestPrice, effectiveFeePerGas] = await anyrand.getRequestPrice(100_000, {
+                    gasPrice,
+                })
+                // 100k callback + 200k fulfilment overhead, with a 1.5x premium.
+                expect(requestPrice).to.eq(expectedFeePerGas * 450_000n)
+                expect(effectiveFeePerGas).to.eq(expectedFeePerGas)
             })
         }
     })
@@ -349,7 +350,7 @@ describe('Anyrand', () => {
             expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Pending)
         })
 
-        it('should accept a request at the capped fee while preserving overhead and premium', async () => {
+        it('should accept a request when gas exceeds the fee cap', async () => {
             ;({ anyrand } = await deployAnyrandStack({
                 deployer,
                 beacon: (await drandBeacon.getAddress()) as `0x${string}`,
@@ -369,12 +370,10 @@ describe('Anyrand', () => {
                 },
             )
             const maxFeePerGas = await anyrand.maxFeePerGas()
+            const requestPremiumBps = await anyrand.requestPremiumMultiplierBps()
             expect(effectiveGasPrice).to.eq(maxFeePerGas) // capped
             expect(cappedRequestPrice).to.eq(
-                (maxFeePerGas *
-                    (200_000n + callbackGasLimit) *
-                    (await anyrand.requestPremiumMultiplierBps())) /
-                    10_000n,
+                (maxFeePerGas * (200_000n + callbackGasLimit) * requestPremiumBps) / 100_00n,
             )
 
             const deadline = BigInt(await time.latest()) + 31n

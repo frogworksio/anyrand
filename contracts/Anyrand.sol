@@ -130,10 +130,11 @@ contract Anyrand is
         uint256 callbackGasLimit
     ) public view virtual returns (uint256, uint256) {
         MainStorage storage $ = _getMainStorage();
-        uint256 fulfillmentGasLimit = 200_000 + callbackGasLimit;
+        uint256 gasLimit = 200_000 /** fulfillRandomness overhead */ +
+            callbackGasLimit;
         (uint256 rawTxCost, uint256 effectiveFeePerGas) = IGasStation(
             $.gasStation
-        ).getTxCost(fulfillmentGasLimit);
+        ).getTxCost(gasLimit);
         uint256 totalCost = (rawTxCost * $.requestPremiumMultiplierBps) / 1e4;
         if (effectiveFeePerGas > $.maxFeePerGas) {
             // Cap gas price at maxFeePerGas (keeper will only fulfill when gas
@@ -141,11 +142,9 @@ contract Anyrand is
             // Importantly, fulfilment is permissionless, so it's possible to
             // override this behaviour and fulfill randomness even when the
             // keeper refuses to.
-            // Preserve the fulfillment overhead and premium at the capped fee.
+            // Preserve the fulfilment overhead and premium at the capped fee.
             totalCost =
-                ($.maxFeePerGas *
-                    fulfillmentGasLimit *
-                    $.requestPremiumMultiplierBps) /
+                ($.maxFeePerGas * gasLimit * $.requestPremiumMultiplierBps) /
                 1e4;
             effectiveFeePerGas = $.maxFeePerGas;
         }
