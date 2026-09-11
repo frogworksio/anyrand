@@ -194,6 +194,30 @@ describe('Anyrand', () => {
             })
             console.log(`#getRequestPrice gas: ${gasCost}`)
         })
+
+        for (const [label, offset] of [
+            ['just below', -1n],
+            ['exactly at', 0n],
+            ['just above', 1n],
+        ] as const) {
+            it(`preserves fulfillment overhead and premium ${label} the fee cap`, async () => {
+                const feeCap = parseUnits('10', 'gwei')
+                ;({ anyrand } = await deployAnyrandStack({
+                    deployer,
+                    beacon: (await drandBeacon.getAddress()) as `0x${string}`,
+                    maxFeePerGas: feeCap,
+                    requestPremiumBps: 15_000n,
+                }))
+
+                const price = feeCap + offset
+                const cappedPrice = offset > 0n ? feeCap : price
+                // 100k callback + 200k fulfillment overhead, with a 1.5x premium.
+                expect(await anyrand.getRequestPrice(100_000, { gasPrice: price })).to.deep.eq([
+                    cappedPrice * 450_000n,
+                    cappedPrice,
+                ])
+            })
+        }
     })
 
     describe('getRound', () => {
@@ -325,7 +349,7 @@ describe('Anyrand', () => {
             expect(await anyrand.getRequestState(requestId)).to.eq(RequestState.Pending)
         })
 
-        it('should revert if request price returns too high effective gas price', async () => {
+        it('should accept a request at the capped fee while preserving overhead and premium', async () => {
             ;({ anyrand } = await deployAnyrandStack({
                 deployer,
                 beacon: (await drandBeacon.getAddress()) as `0x${string}`,
@@ -346,7 +370,12 @@ describe('Anyrand', () => {
             )
             const maxFeePerGas = await anyrand.maxFeePerGas()
             expect(effectiveGasPrice).to.eq(maxFeePerGas) // capped
-            expect(cappedRequestPrice).to.eq(maxFeePerGas * callbackGasLimit)
+            expect(cappedRequestPrice).to.eq(
+                (maxFeePerGas *
+                    (200_000n + callbackGasLimit) *
+                    (await anyrand.requestPremiumMultiplierBps())) /
+                    10_000n,
+            )
 
             const deadline = BigInt(await time.latest()) + 31n
             const requestId = await anyrand.nextRequestId()
