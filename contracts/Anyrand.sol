@@ -160,11 +160,11 @@ contract Anyrand is
         uint256 period
     ) public pure returns (uint64) {
         uint256 delta = deadline - genesis;
-        return uint64(delta / period + (delta % period > 0 ? 1 : 0));
+        return uint64(delta / period + (delta % period > 0 ? 1 : 0) + 1);
     }
 
     /// @notice Request randomness. Note that the fulfilment of the request will
-    ///     always be *after* the deadline, but never before.
+    ///     always be at or after the deadline, but never before.
     /// @param deadline Timestamp of when the randomness should be fulfilled. A
     ///     beacon round closest to this timestamp (rounding up to the nearest
     ///     future round) will be used as the round from which to derive
